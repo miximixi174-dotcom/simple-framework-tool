@@ -1,0 +1,104 @@
+/* ==== 全局基础样式 ==== */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC',
+    'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  color: #1f2937;
+  background: #ffffff;
+}
+
+/* ==== 顶部主标题 ==== */
+.app-title {
+  text-align: center;
+  font-size: 22px;
+  font-weight: 600;
+  padding: 18px 0 8px;
+  letter-spacing: 1px;
+  color: #111827;
+}
+
+/* ==== 主体三栏外壳 ==== */
+.app-shell {
+  position: relative;
+  width: 100%;
+  min-width: 1280px;
+  padding: 8px 24px 32px;
+}
+
+/* 截止日期（左上） */
+.deadline-text {
+  position: absolute;
+  top: 8px;
+  left: 24px;
+  font-size: 16px;
+  color: #1f2937;
+  font-weight: 500;
+}
+
+/* 数字看板（右上） */
+.kpi-panel {
+  position: absolute;
+  top: 12px;
+  right: 24px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #1f2937;
+  text-align: left;
+}
+.kpi-panel .kpi-note {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+.kpi-panel .kpi-row {
+  display: flex;
+  gap: 28px;
+  font-weight: 600;
+}
+.kpi-panel .kpi-row span b {
+  color: #2563eb;
+  margin-left: 4px;
+  font-weight: 700;
+}
+
+/* ==== 主区域：架构图(左) + 图表(右) ==== */
+.main-area {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 16px;
+  margin-top: 64px;
+  align-items: start;
+}
+
+.left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ==== 通用卡片 ==== */
+.panel {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.panel-title {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}

@@ -1,0 +1,3212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HIGAME - UI人力架构</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.4.27/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            /* 组别色 - 多彩 */
+            --color-interaction: #4F7CD9;
+            --color-visual:      #7CC576;
+            --color-refactor:    #F4B942;
+            --color-motion:      #E15B5B;
+            /* 公司编制色 - 蓝色渐变 */
+            --color-group-formal:  #1e3a8a;
+            --color-group-intern:  #60a5fa;
+            --color-sub-formal:    #3b82f6;
+            --color-sub-intern:    #bfdbfe;
+            /* 主题纯色 */
+            --color-primary:    #1e40af;
+            --color-pm:         #6366f1;
+            /* 中性色 */
+            --bg-page:    #f5f7fb;
+            --bg-card:    #ffffff;
+            --text-main:  #1f2937;
+            --text-sub:   #64748b;
+            --border:     #e5e7eb;
+            --shadow:     0 4px 16px rgba(31, 41, 55, 0.06);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { width: 100%; height: 100%; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #f5f7fb 0%, #eef2f8 100%);
+            color: var(--text-main);
+            padding: 18px 22px;
+            min-height: 100vh;
+        }
+        .container {
+            width: 100%;
+            max-width: none;
+            margin: 0;
+            min-height: calc(100vh - 36px);
+            height: calc(100vh - 36px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ===== ① 顶部信息条 ===== */
+        .top-bar {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            margin-bottom: 18px;
+            padding: 14px 22px;
+            gap: 16px;
+            background: var(--bg-card);
+            border-radius: 14px;
+            box-shadow: 0 4px 14px rgba(31, 41, 55, 0.05);
+        }
+        .top-bar .left-info {
+            display: flex; flex-direction: column; gap: 3px;
+            font-size: 12px;
+            color: var(--text-sub);
+        }
+        .top-bar .left-info > div:first-child { color: #475569; font-weight: 500; }
+        .top-bar .title { text-align: center; }
+        .top-bar .title h1 {
+            font-size: 24px;
+            color: #1e3a8a;
+            letter-spacing: 3px;
+            font-weight: 700;
+        }
+        .top-bar .right-action {
+            display: flex; justify-content: flex-end;
+        }
+
+        /* ===== 主布局 左70% / 右30% ===== */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 7fr 3fr;
+            gap: 20px;
+            align-items: stretch;
+            flex: 1;
+            min-height: 0;
+        }
+        .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .right-column > * { flex: 1 1 0; min-height: 0; }
+
+        .section-label {
+            font-size: 13px;
+            color: var(--text-sub);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+        .section-label::before {
+            content: '';
+            width: 3px; height: 14px;
+            background: var(--color-primary);
+            border-radius: 2px;
+            box-shadow: 0 0 6px rgba(30, 64, 175, 0.35);
+        }
+
+        /* ===== ② 框架图（左侧 - 全 SVG） ===== */
+        .org-chart {
+            background: var(--bg-card);
+            border-radius: 18px;
+            padding: 22px 26px 26px;
+            box-shadow: 0 6px 24px rgba(31, 41, 55, 0.07), 0 1px 2px rgba(31,41,55,0.04);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+        .org-chart::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #4F7CD9, #7CC576, #F4B942, #E15B5B);
+            opacity: 0.85;
+        }
+        .org-svg-wrap {
+            flex: 1;
+            min-height: 0;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            padding: 4px 6px;
+            cursor: grab;
+            user-select: none;
+        }
+        .org-svg-wrap.dragging { cursor: grabbing; }
+        .org-svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        /* 组织架构图工具栏 */
+        .org-toolbar {
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            z-index: 5;
+            display: flex;
+            gap: 6px;
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(8px);
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 4px 6px;
+            box-shadow: 0 2px 8px rgba(31,41,55,0.08);
+        }
+        .org-toolbar button {
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            color: #475569;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: background 0.2s;
+            min-width: 28px;
+        }
+        .org-toolbar button:hover { background: #f1f5f9; color: #1e3a8a; }
+        .org-toolbar .scale-display {
+            font-size: 12px;
+            color: #64748b;
+            padding: 4px 6px;
+            min-width: 44px;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+        }
+        /* SVG 节点交互样式 */
+        .org-svg .node-card { cursor: pointer; transition: filter 0.25s, transform 0.25s; transform-box: fill-box; transform-origin: center; }
+        .org-svg .node-card:hover { filter: brightness(1.08) drop-shadow(0 4px 10px rgba(30, 58, 138, 0.18)); }
+        .org-svg .member-card:hover rect:first-of-type { fill: #ffffff; stroke: #94a3b8; }
+        .org-svg .node-actions { opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+        .org-svg .node-card:hover .node-actions { opacity: 1; pointer-events: auto; }
+        .org-svg .action-btn { cursor: pointer; transition: opacity 0.2s, transform 0.2s; }
+        .org-svg .action-btn:hover { opacity: 0.9; }
+        .org-svg text { user-select: none; pointer-events: none; }
+
+        /* ===== ③ 右侧饼图卡片 ===== */
+        .chart-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 18px 20px;
+            box-shadow: 0 4px 16px rgba(31, 41, 55, 0.06), 0 1px 2px rgba(31,41,55,0.03);
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+            transition: box-shadow 0.25s, transform 0.25s;
+        }
+        .chart-card .chart-body { overflow: hidden; }
+        .chart-card .stat-grid {
+            max-height: 100%;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .chart-card .stat-grid::-webkit-scrollbar { width: 5px; }
+        .chart-card .stat-grid::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 3px; }
+        .chart-card:hover {
+            box-shadow: 0 10px 28px rgba(31, 41, 55, 0.10), 0 1px 2px rgba(31,41,55,0.04);
+            transform: translateY(-1px);
+        }
+        .chart-body {
+            display: grid;
+            grid-template-columns: 7fr 3fr;
+            gap: 14px;
+            align-items: center;
+            flex: 1;
+            min-height: 0;
+        }
+        .echart-pie {
+            width: 100%;
+            height: 100%;
+            min-height: 150px;
+        }
+
+        /* 2x2 数字网格（变为垂直 4 行，取代 2x2） */
+        .stat-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .stat-cell {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 6px 8px 6px 10px;
+            border-radius: 7px;
+            background: #f8fafc;
+            border-left: 3px solid var(--accent);
+            min-width: 0;
+            transition: background 0.2s, transform 0.2s;
+        }
+        .stat-cell:hover {
+            background: #f1f5f9;
+            transform: translateX(2px);
+        }
+        .stat-cell .s-num {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent);
+            line-height: 1.1;
+            letter-spacing: 0.5px;
+        }
+        .stat-cell .s-percent {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent);
+            opacity: 0.85;
+            margin-top: 1px;
+            letter-spacing: 0.3px;
+        }
+        .stat-cell .s-label {
+            font-size: 10.5px;
+            color: var(--text-sub);
+            margin-top: 1px;
+            white-space: nowrap;
+        }
+
+        /* ===== ④ 人员回收池 ===== */
+        .recycle-bin {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 18px 20px;
+            box-shadow: 0 4px 16px rgba(31, 41, 55, 0.06), 0 1px 2px rgba(31,41,55,0.03);
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            transition: box-shadow 0.25s, transform 0.25s;
+        }
+        .recycle-bin:hover {
+            box-shadow: 0 10px 28px rgba(31, 41, 55, 0.10), 0 1px 2px rgba(31,41,55,0.04);
+            transform: translateY(-1px);
+        }
+        .recycle-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .recycle-list::-webkit-scrollbar { width: 6px; }
+        .recycle-list::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 3px; }
+        .recycle-list::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+        .recycle-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: #fef2f2;
+            border-left: 3px solid #fca5a5;
+            font-size: 12px;
+        }
+        .recycle-item .r-reason-tag {
+            margin-left: 8px; color: #ef4444; cursor: pointer;
+            padding: 1px 4px; border-radius: 4px;
+            transition: background 0.15s;
+        }
+        .recycle-item .r-reason-tag:hover { background: #fee2e2; }
+        .recycle-item .r-reason-tag.r-reason-auto { cursor: not-allowed; opacity: 0.85; }
+        .recycle-item .r-reason-tag.r-reason-auto:hover { background: transparent; }
+        .recycle-item .r-reason-edit-icon { font-size: 10px; margin-left: 2px; opacity: 0.7; }
+        .recycle-item .r-reason-editor {
+            margin-top: 6px; padding: 8px; background: #f8fafc;
+            border: 1px solid #e2e8f0; border-radius: 6px;
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .recycle-item .r-reason-editor-row { display: flex; align-items: center; gap: 8px; }
+        .recycle-item .r-reason-editor-row label {
+            font-size: 11px; color: #64748b; min-width: 56px;
+        }
+        .recycle-item .r-reason-editor-row select,
+        .recycle-item .r-reason-editor-row input {
+            flex: 1; min-width: 0; font-size: 11px; padding: 3px 6px;
+            border: 1px solid #cbd5e1; border-radius: 4px; outline: none;
+            background: #fff; color: #334155;
+        }
+        .recycle-item .r-reason-editor-row select:focus,
+        .recycle-item .r-reason-editor-row input:focus {
+            border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(79,124,217,0.15);
+        }
+        .recycle-item .r-reason-editor-actions { display: flex; gap: 6px; justify-content: flex-end; }
+        .recycle-item .r-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+        .recycle-item .r-name { font-size: 13px; font-weight: 500; color: var(--text-main); }
+        .recycle-item .r-meta { font-size: 11px; color: var(--text-sub); word-break: break-all; }
+        .recycle-item .r-note-row { display: flex; align-items: center; gap: 6px; margin-top: 2px; flex-wrap: wrap; }
+        .recycle-item .r-note-text { flex: 1; min-width: 0; font-size: 11px; color: #475569; font-style: italic; word-break: break-all; }
+        .recycle-item .r-note-edit-btn {
+            background: transparent; border: none; cursor: pointer;
+            color: #94a3b8; font-size: 12px; padding: 2px 4px; border-radius: 4px;
+            transition: color 0.15s, background 0.15s;
+        }
+        .recycle-item .r-note-edit-btn:hover { color: var(--color-primary); background: #f1f5f9; }
+        .recycle-item .r-note-input {
+            flex: 1; min-width: 0; font-size: 11px; padding: 4px 8px;
+            border: 1px solid #cbd5e1; border-radius: 6px; outline: none;
+            background: #fff; color: #334155;
+        }
+        .recycle-item .r-note-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(79,124,217,0.15); }
+        .recycle-item .r-note-save {
+            background: #dcfce7; color: #16a34a; border: none; cursor: pointer;
+            font-size: 11px; padding: 3px 8px; border-radius: 5px; font-weight: 500;
+        }
+        .recycle-item .r-note-save:hover { background: #bbf7d0; }
+        .recycle-item .r-note-cancel {
+            background: #f1f5f9; color: #64748b; border: none; cursor: pointer;
+            font-size: 11px; padding: 3px 8px; border-radius: 5px;
+        }
+        .recycle-item .r-note-cancel:hover { background: #e2e8f0; }
+        .recycle-item .r-note-add {
+            background: transparent; border: 1px dashed #cbd5e1; cursor: pointer;
+            color: #94a3b8; font-size: 11px; padding: 2px 8px; border-radius: 5px;
+            transition: all 0.15s;
+        }
+        .recycle-item .r-note-add:hover { color: var(--color-primary); border-color: var(--color-primary); }
+        .recycle-item .r-actions { display: flex; gap: 4px; }
+        .recycle-item button {
+            border: none; cursor: pointer;
+            padding: 4px 10px; font-size: 11px;
+            border-radius: 6px; transition: all 0.2s;
+        }
+        .recycle-item .btn-restore { background: #dbeafe; color: var(--color-primary); }
+        .recycle-item .btn-restore:hover { background: #bfdbfe; }
+        .recycle-item .btn-purge { background: transparent; color: #94a3b8; }
+        .recycle-item .btn-purge:hover { color: #ef4444; }
+        .recycle-empty {
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-sub);
+            padding: 20px 0;
+        }
+
+        /* ===== 按钮（纯色） ===== */
+        .btn {
+            padding: 9px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        .btn-primary {
+            background: var(--color-primary);
+            color: white;
+            box-shadow: 0 2px 6px rgba(30, 64, 175, 0.18);
+        }
+        .btn-primary:hover { background: #1e3a8a; }
+        .btn-ghost {
+            background: white;
+            color: var(--text-main);
+            border: 1px solid var(--border);
+        }
+        .btn-outline {
+            background: white;
+            color: var(--color-primary);
+            border: 1px solid #c7d2fe;
+            margin-right: 8px;
+        }
+        .btn-outline:hover {
+            background: #eef2ff;
+            border-color: var(--color-primary);
+        }
+        /* 颜色选择器 */
+        .color-picker { display: flex; gap: 10px; flex-wrap: wrap; }
+        .color-swatch {
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.15s, border 0.15s;
+        }
+        .color-swatch:hover { transform: scale(1.1); }
+        .color-swatch.active {
+            border-color: #1e293b;
+            transform: scale(1.1);
+        }
+
+        /* ===== 模态框 ===== */
+        .modal {
+            position: fixed; inset: 0;
+            background: rgba(15, 23, 42, 0.5);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(2px);
+        }
+        .modal-content {
+            background: white; border-radius: 14px; padding: 28px;
+            width: 420px; max-width: 90vw;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .modal-title { font-size: 18px; font-weight: 600; margin-bottom: 18px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label {
+            display: block; margin-bottom: 6px; font-size: 13px;
+            color: var(--text-sub);
+        }
+        .form-group input, .form-group select {
+            width: 100%; padding: 9px 12px;
+            border: 1px solid var(--border);
+            border-radius: 7px; font-size: 14px;
+            outline: none; transition: border 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: #3b82f6;
+        }
+        .modal-actions {
+            display: flex; justify-content: flex-end; gap: 10px;
+            margin-top: 22px;
+        }
+
+        /* ===== 删除模态框：单选时间类型 ===== */
+        .radio-group { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+        .radio-label {
+            display: flex; align-items: flex-start; gap: 8px;
+            padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px;
+            cursor: pointer; transition: all 0.15s; font-size: 13px; color: #334155;
+        }
+        .radio-label:hover { border-color: var(--color-primary); background: #f8fafc; }
+        .radio-label input[type="radio"] { margin-top: 3px; cursor: pointer; }
+        .radio-label input[type="radio"]:checked + span strong { color: var(--color-primary); }
+        .form-tip {
+            margin-top: 6px; font-size: 11px; color: #94a3b8; line-height: 1.5;
+        }
+
+        /* ===== 恢复确认模态框 ===== */
+        .restore-confirm-body { display: flex; gap: 14px; padding: 8px 0; }
+        .restore-confirm-icon {
+            font-size: 36px; color: #16a34a; line-height: 1;
+            width: 56px; height: 56px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            background: #dcfce7; border-radius: 50%;
+        }
+        .restore-confirm-text { flex: 1; font-size: 13px; color: #334155; line-height: 1.6; }
+        .restore-confirm-text p { margin: 0 0 6px 0; }
+        .restore-confirm-tip { color: #64748b; font-size: 12px; }
+        .restore-confirm-list {
+            margin: 4px 0 8px 18px; padding: 0; color: #64748b; font-size: 12px;
+        }
+        .restore-confirm-list li { margin: 2px 0; }
+
+        /* ===== Toast 提示 ===== */
+        .toast-wrap {
+            position: fixed; top: 24px; right: 24px; z-index: 9999;
+            display: flex; flex-direction: column; gap: 8px;
+            pointer-events: none;
+        }
+        .toast-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 16px; border-radius: 8px;
+            background: #fff; border: 1px solid #e2e8f0;
+            box-shadow: 0 6px 20px rgba(15,23,42,0.12);
+            font-size: 13px; color: #334155;
+            min-width: 220px; max-width: 360px;
+            pointer-events: auto;
+        }
+        .toast-item.toast-success { border-left: 4px solid #16a34a; }
+        .toast-item.toast-warn { border-left: 4px solid #f59e0b; }
+        .toast-item.toast-info { border-left: 4px solid var(--color-primary); }
+        .toast-icon {
+            width: 20px; height: 20px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: bold; color: #fff; flex-shrink: 0;
+        }
+        .toast-success .toast-icon { background: #16a34a; }
+        .toast-warn .toast-icon { background: #f59e0b; }
+        .toast-info .toast-icon { background: var(--color-primary); }
+        .toast-msg { flex: 1; line-height: 1.4; word-break: break-all; }
+        .toast-enter-active, .toast-leave-active { transition: all 0.3s ease; }
+        .toast-enter-from { opacity: 0; transform: translateX(40px); }
+        .toast-leave-to { opacity: 0; transform: translateX(40px); }
+
+        /* ===== 待离职徽标 ===== */
+        .pending-badge {
+            display: inline-block; margin-left: 6px;
+            padding: 1px 6px; border-radius: 8px;
+            background: #fef3c7; color: #b45309;
+            font-size: 10px; font-weight: 500;
+        }
+
+        /* ===== 初始导入向导 ===== */
+        .wizard-mask {
+            position: fixed; inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 2000;
+            padding: 24px;
+        }
+        .wizard-panel {
+            background: #fff;
+            border-radius: 18px;
+            width: 880px; max-width: 100%;
+            max-height: 92vh;
+            display: flex; flex-direction: column;
+            box-shadow: 0 24px 80px rgba(15,23,42,0.30);
+            overflow: hidden;
+        }
+        .wizard-header {
+            padding: 22px 28px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: center; justify-content: space-between;
+            background: linear-gradient(135deg, #f8fafc 0%, #eef2f8 100%);
+        }
+        .wizard-header h2 {
+            font-size: 20px; color: #1e3a8a; letter-spacing: 1px;
+            font-weight: 700; margin: 0;
+        }
+        .wizard-header .wizard-sub {
+            font-size: 12px; color: #64748b; margin-top: 4px;
+        }
+        .wizard-header .wizard-skip {
+            background: transparent; border: 1px solid #cbd5e1;
+            color: #64748b; cursor: pointer;
+            font-size: 12px; padding: 6px 14px; border-radius: 8px;
+            transition: all 0.15s;
+        }
+        .wizard-header .wizard-skip:hover { background: #f1f5f9; color: #334155; }
+        .wizard-body {
+            flex: 1; min-height: 0;
+            overflow-y: auto;
+            padding: 24px 28px;
+        }
+        .wizard-body::-webkit-scrollbar { width: 8px; }
+        .wizard-body::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
+        .wizard-footer {
+            padding: 14px 28px;
+            border-top: 1px solid #f1f5f9;
+            display: flex; align-items: center; justify-content: space-between;
+            background: #fafbfd;
+            gap: 10px;
+        }
+        .wizard-footer .wizard-step-info { font-size: 12px; color: #64748b; }
+        .wizard-footer .footer-actions { display: flex; gap: 10px; }
+
+        /* 入口卡片样式（已移除入口卡设计，保留 .preview-empty 兼容） */
+        .preview-empty { color: #94a3b8; font-size: 12px; text-align: center; padding: 30px 0; }
+
+        /* 子页面通用 */
+        .wizard-subpage h3 {
+            font-size: 15px; color: #1e293b; margin-bottom: 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .wizard-back-btn {
+            background: transparent; border: none; cursor: pointer;
+            color: var(--color-primary); font-size: 13px; padding: 4px 8px;
+            border-radius: 6px; transition: background 0.15s;
+        }
+        .wizard-back-btn:hover { background: #eef2ff; }
+
+        /* 上传区 */
+        .wizard-upload {
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 28px 20px;
+            text-align: center;
+            background: #f8fafc;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .wizard-upload.is-dragover {
+            border-color: var(--color-primary);
+            background: #eef2ff;
+        }
+        .wizard-upload .u-icon { font-size: 36px; margin-bottom: 8px; }
+        .wizard-upload .u-tip { font-size: 13px; color: #475569; }
+        .wizard-upload .u-sub { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+
+        /* 文本输入区 */
+        .wizard-textarea {
+            width: 100%;
+            min-height: 180px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 13px;
+            font-family: 'Consolas', 'Menlo', 'Monaco', monospace;
+            line-height: 1.6;
+            outline: none;
+            resize: vertical;
+            background: #fff;
+            color: #1e293b;
+        }
+        .wizard-textarea:focus {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(30,64,175,0.10);
+        }
+        .wizard-format-tip {
+            margin-top: 8px;
+            padding: 10px 12px;
+            background: #f8fafc;
+            border-left: 3px solid var(--color-primary);
+            border-radius: 6px;
+            font-size: 11px;
+            color: #475569;
+            line-height: 1.6;
+        }
+        .wizard-format-tip strong { color: #1e3a8a; }
+        .wizard-format-tip code {
+            background: #e2e8f0; padding: 1px 4px; border-radius: 3px;
+            font-family: 'Consolas', monospace; font-size: 10.5px;
+        }
+        .wizard-template-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+        .wizard-template-btn {
+            background: #fff; border: 1px solid #cbd5e1;
+            color: #475569; cursor: pointer;
+            font-size: 11px; padding: 4px 10px; border-radius: 6px;
+        }
+        .wizard-template-btn:hover { background: #f1f5f9; border-color: var(--color-primary); color: var(--color-primary); }
+
+        /* AI 对话相关样式（已移除） */
+        .preview-empty { color: #94a3b8; font-size: 12px; text-align: center; padding: 30px 0; }
+
+        /* 预览校对页 */
+        .preview-block {
+            margin-bottom: 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .preview-block-header {
+            background: #f8fafc;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #1e293b;
+            font-weight: 600;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .preview-block-header .pb-badge {
+            background: var(--color-primary); color: #fff;
+            font-size: 10px; padding: 1px 6px; border-radius: 8px;
+            font-weight: 500;
+        }
+        .preview-block-body { padding: 8px 12px; }
+        .preview-row {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr 0.9fr 28px;
+            gap: 8px;
+            padding: 5px 0;
+            align-items: center;
+        }
+        .preview-row + .preview-row { border-top: 1px dashed #f1f5f9; }
+        .preview-row input, .preview-row select {
+            font-size: 12px;
+            padding: 4px 6px;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            outline: none;
+            min-width: 0;
+            background: #fff;
+        }
+        .preview-row input:focus, .preview-row select:focus { border-color: var(--color-primary); }
+        .preview-row .row-del {
+            background: transparent; border: none; cursor: pointer;
+            color: #ef4444; font-size: 14px;
+        }
+        .preview-add-row {
+            display: flex; gap: 6px; padding: 6px 12px;
+            background: #fafbfd; border-top: 1px solid #f1f5f9;
+        }
+        .preview-add-btn {
+            background: transparent; border: 1px dashed #cbd5e1;
+            color: #64748b; cursor: pointer;
+            font-size: 12px; padding: 4px 12px; border-radius: 5px;
+        }
+        .preview-add-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+        .preview-summary {
+            background: #ecfdf5; border-left: 3px solid #16a34a;
+            padding: 10px 14px; border-radius: 6px;
+            font-size: 12px; color: #166534;
+            margin-bottom: 14px;
+        }
+        .preview-empty-warn {
+            background: #fef2f2; border-left: 3px solid #ef4444;
+            padding: 10px 14px; border-radius: 6px;
+            font-size: 12px; color: #991b1b;
+            margin-bottom: 14px;
+        }
+
+        /* ===== 折叠：高级 / 批量导入面板 ===== */
+        .advanced-import {
+            margin-top: 18px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 10px;
+            background: #fafbfd;
+            overflow: hidden;
+        }
+        .advanced-import-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px;
+            font-size: 13px; font-weight: 600; color: #475569;
+            cursor: pointer;
+            user-select: none;
+        }
+        .advanced-import-header:hover { background: #f1f5f9; }
+        .adv-tools { display: flex; align-items: center; gap: 6px; }
+        .adv-chip {
+            background: #fff; border: 1px solid #cbd5e1; color: #64748b;
+            font-size: 11.5px; padding: 4px 10px; border-radius: 14px;
+            cursor: pointer; transition: all 0.15s;
+        }
+        .adv-chip:hover { border-color: var(--color-primary); color: var(--color-primary); }
+        .adv-chip.active {
+            background: var(--color-primary); border-color: var(--color-primary); color: #fff;
+        }
+        .adv-toggle { color: #94a3b8; font-size: 11px; margin-left: 4px; }
+        .advanced-import-body {
+            padding: 14px; border-top: 1px solid #e2e8f0;
+            background: #fff;
+        }
+        .adv-tip {
+            font-size: 11.5px; color: #475569;
+            background: #eef2ff; border-left: 3px solid var(--color-primary);
+            padding: 8px 12px; border-radius: 5px; margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .adv-tip strong { color: #1e3a8a; }
+
+        /* 顶栏「重新导入」按钮 */
+        .btn-reimport {
+            background: white; color: #475569;
+            border: 1px solid var(--border);
+            margin-right: 8px;
+        }
+        .btn-reimport:hover { background: #f8fafc; color: var(--color-primary); border-color: #c7d2fe; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="container">
+            <!-- ① 顶部信息条 -->
+            <div class="top-bar">
+                <div class="left-info">
+                    <div>更新时间：{{ currentTime }}</div>
+                </div>
+                <div class="title">
+                    <h1>HIGAME · UI人力架构</h1>
+                </div>
+                <div class="right-action">
+                    <button class="btn btn-reimport" @click="openWizard(true)" title="重新导入团队数据">📥 重新导入</button>
+                    <button class="btn btn-outline" @click="resetAllData" style="color:#ef4444; border-color:#fecaca;" title="清除所有本地数据并恢复默认">⟲ 恢复默认</button>
+                    <button class="btn btn-outline" @click="openAddGroup">＋ 添加组别</button>
+                    <button class="btn btn-primary" @click="showAddModal = true">＋ 添加新成员</button>
+                </div>
+            </div>
+
+            <!-- ② 主布局 -->
+            <div class="main-layout">
+                <!-- 左侧框架图（全 SVG） -->
+                <div class="org-chart">
+                    <div class="section-label">组织架构图</div>
+                    <div class="org-svg-wrap"
+                         ref="orgWrapRef"
+                         :class="{ dragging: isDragging }"
+                         @wheel.prevent="onWheelZoom"
+                         @mousedown="onPanStart">
+                        <div class="org-toolbar" @mousedown.stop @wheel.stop>
+                            <button @click="zoomOut" title="缩小">➖</button>
+                            <span class="scale-display">{{ Math.round(displayScale * 100) }}%</span>
+                            <button @click="zoomIn" title="放大">➕</button>
+                            <button @click="resetView" title="重置为 80% 默认视图">⟲ 80%</button>
+                        </div>
+                        <svg class="org-svg"
+                             :viewBox="`0 0 ${wrapSize.w || 1} ${wrapSize.h || 1}`"
+                             preserveAspectRatio="xMidYMid meet">
+                            <g :transform="canvasTransform">
+                            <!-- 滤镜定义 -->
+                            <defs>
+                                <filter id="node-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#1e293b" flood-opacity="0.18"/>
+                                </filter>
+                                <filter id="node-shadow-soft" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#1e293b" flood-opacity="0.10"/>
+                                </filter>
+                                <linearGradient id="highlight-overlay" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.18"/>
+                                    <stop offset="55%" stop-color="#ffffff" stop-opacity="0"/>
+                                </linearGradient>
+                            </defs>
+                            <!-- 连线层 -->
+                            <g class="connectors">
+                                <!-- 总负责人 → 各组长 的主干 -->
+                                <path v-for="path in orgLayout.connectorPaths" :key="path.id"
+                                      :d="path.d"
+                                      fill="none"
+                                      :stroke="path.stroke || '#cbd5e1'"
+                                      :stroke-width="path.width || 1.5"
+                                      :stroke-dasharray="path.dash || ''"
+                                      :opacity="path.opacity || 1" />
+                            </g>
+
+                            <!-- 总负责人 -->
+                            <g class="node-card" @click="openEdit('root')"
+                               :opacity="rootLeader.departureDate ? 0.6 : 1">
+                                <rect :x="orgLayout.root.x" :y="orgLayout.root.y"
+                                      :width="orgLayout.root.w" :height="orgLayout.root.h"
+                                      rx="14" ry="14"
+                                      :fill="'#1e40af'"
+                                      filter="url(#node-shadow)" />
+                                <!-- 顶部高光遮罩 -->
+                                <rect :x="orgLayout.root.x" :y="orgLayout.root.y"
+                                      :width="orgLayout.root.w" :height="orgLayout.root.h"
+                                      rx="14" ry="14"
+                                      fill="url(#highlight-overlay)" pointer-events="none" />
+                                <text :x="orgLayout.root.x + orgLayout.root.w/2"
+                                      :y="orgLayout.root.y + 22"
+                                      text-anchor="middle"
+                                      fill="rgba(255,255,255,0.92)"
+                                      font-size="12" letter-spacing="2.5" font-weight="500"
+                                      :opacity="rootLeader.departureDate ? 0.8 : 1">UI 职能</text>
+                                <text :x="orgLayout.root.x + orgLayout.root.w/2"
+                                      :y="orgLayout.root.y + 50"
+                                      text-anchor="middle"
+                                      fill="#fff" font-size="22" font-weight="700" letter-spacing="1"
+                                      :opacity="rootLeader.departureDate ? 0.8 : 1">{{ rootLeader.name }}</text>
+                                <text v-if="rootLeader.enName"
+                                      :x="orgLayout.root.x + orgLayout.root.w/2"
+                                      :y="orgLayout.root.y + 68"
+                                      text-anchor="middle"
+                                      fill="rgba(255,255,255,0.78)" font-size="11" letter-spacing="0.5" font-style="italic"
+                                      :opacity="rootLeader.departureDate ? 0.8 : 1">{{ rootLeader.enName }}</text>
+                                <text :x="orgLayout.root.x + orgLayout.root.w/2"
+                                      :y="orgLayout.root.y + 84"
+                                      text-anchor="middle"
+                                      fill="rgba(255,255,255,0.85)" font-size="10"
+                                      :opacity="rootLeader.departureDate ? 0.8 : 1">
+                                    {{ getAffiliationLabel(rootLeader.affiliation) }}
+                                </text>
+                                <!-- 离职时间显示（总负责人卡片右下角） -->
+                                <text v-if="rootLeader.departureDate" 
+                                      :x="orgLayout.root.x + orgLayout.root.w - 85" :y="orgLayout.root.y + orgLayout.root.h - 8"
+                                      fill="rgba(255,255,255,0.8)" font-size="9" font-style="italic" text-anchor="start">
+                                    离职：{{ rootLeader.departureDate }}
+                                </text>
+                            </g>
+
+                            <!-- UI PM -->
+                            <g class="node-card" @click="openEdit('uipm')"
+                               :opacity="uiPM.departureDate ? 0.6 : 1">
+                                <rect :x="orgLayout.pm.x" :y="orgLayout.pm.y"
+                                      :width="orgLayout.pm.w" :height="orgLayout.pm.h"
+                                      rx="12" ry="12"
+                                      fill="#6366f1"
+                                      filter="url(#node-shadow)" />
+                                <rect :x="orgLayout.pm.x" :y="orgLayout.pm.y"
+                                      :width="orgLayout.pm.w" :height="orgLayout.pm.h"
+                                      rx="12" ry="12"
+                                      fill="url(#highlight-overlay)" pointer-events="none" />
+                                <text :x="orgLayout.pm.x + orgLayout.pm.w/2"
+                                      :y="orgLayout.pm.y + 18"
+                                      text-anchor="middle"
+                                      fill="rgba(255,255,255,0.9)"
+                                      font-size="11" letter-spacing="1"
+                                      :opacity="uiPM.departureDate ? 0.8 : 1">{{ uiPM.role || 'UI PM' }}</text>
+                                <text :x="orgLayout.pm.x + orgLayout.pm.w/2"
+                                      :y="orgLayout.pm.y + 40"
+                                      text-anchor="middle"
+                                      fill="#fff" font-size="15" font-weight="600"
+                                      :opacity="uiPM.departureDate ? 0.8 : 1">{{ uiPM.name }}</text>
+                                <text v-if="uiPM.enName"
+                                      :x="orgLayout.pm.x + orgLayout.pm.w/2"
+                                      :y="orgLayout.pm.y + 56"
+                                      text-anchor="middle"
+                                      fill="rgba(255,255,255,0.78)" font-size="10" font-style="italic"
+                                      :opacity="uiPM.departureDate ? 0.8 : 1">{{ uiPM.enName }}</text>
+                                <!-- 离职时间显示（UI PM卡片右下角） -->
+                                <text v-if="uiPM.departureDate" 
+                                      :x="orgLayout.pm.x + orgLayout.pm.w - 70" :y="orgLayout.pm.y + orgLayout.pm.h - 8"
+                                      fill="rgba(255,255,255,0.8)" font-size="9" font-style="italic" text-anchor="start">
+                                    离职：{{ uiPM.departureDate }}
+                                </text>
+                            </g>
+
+                            <!-- 4个组：组长 + 组员 -->
+                            <template v-for="col in orgLayout.columns" :key="col.group.key">
+                                <!-- 组长卡 -->
+                                <g class="node-card" @click="openEdit('leader', col.leaderId)"
+                                   :opacity="col.leaderObj && col.leaderObj.departureDate ? 0.6 : 1">
+                                    <rect :x="col.leader.x" :y="col.leader.y"
+                                          :width="col.leader.w" :height="col.leader.h"
+                                          rx="12" ry="12"
+                                          :fill="groupColor(col.group.key)"
+                                          filter="url(#node-shadow)" />
+                                    <rect :x="col.leader.x" :y="col.leader.y"
+                                          :width="col.leader.w" :height="col.leader.h"
+                                          rx="12" ry="12"
+                                          fill="url(#highlight-overlay)" pointer-events="none" />
+                                    <text :x="col.leader.x + col.leader.w/2"
+                                          :y="col.leader.y + 19"
+                                          text-anchor="middle"
+                                          fill="rgba(255,255,255,0.92)"
+                                          font-size="12" letter-spacing="1.5" font-weight="500"
+                                          :opacity="col.leaderObj && col.leaderObj.departureDate ? 0.8 : 1">{{ col.group.name }}</text>
+                                    <text :x="col.leader.x + col.leader.w/2"
+                                          :y="col.leader.y + 42"
+                                          text-anchor="middle"
+                                          fill="#fff" font-size="17" font-weight="700" letter-spacing="0.5"
+                                          :opacity="col.leaderObj && col.leaderObj.departureDate ? 0.8 : 1">
+                                        {{ col.leaderName || '—' }}
+                                    </text>
+                                    <text v-if="col.leaderEnName"
+                                          :x="col.leader.x + col.leader.w/2"
+                                          :y="col.leader.y + 60"
+                                          text-anchor="middle"
+                                          fill="rgba(255,255,255,0.82)" font-size="11" font-style="italic" letter-spacing="0.3"
+                                          :opacity="col.leaderObj && col.leaderObj.departureDate ? 0.8 : 1">
+                                        {{ col.leaderEnName }}
+                                    </text>
+                                    <text v-if="col.leaderAffil"
+                                          :x="col.leader.x + col.leader.w/2"
+                                          :y="col.leader.y + 76"
+                                          text-anchor="middle"
+                                          fill="rgba(255,255,255,0.78)" font-size="10"
+                                          :opacity="col.leaderObj && col.leaderObj.departureDate ? 0.8 : 1">
+                                        {{ col.leaderAffil }}
+                                    </text>
+                                    <!-- 离职时间显示（组长卡片右下角） -->
+                                    <text v-if="col.leaderObj && col.leaderObj.departureDate" 
+                                          :x="col.leader.x + col.leader.w - 85" :y="col.leader.y + col.leader.h - 8"
+                                          fill="rgba(255,255,255,0.8)" font-size="9" font-style="italic" text-anchor="start">
+                                        离职：{{ col.leaderObj.departureDate }}
+                                    </text>
+                                    <!-- 组操作按钮：✎ ✕ -->
+                                    <g class="node-actions">
+                                        <g class="action-btn" @click.stop="openRenameGroup(col.group)">
+                                            <rect :x="col.leader.x + col.leader.w - 50" :y="col.leader.y + 6"
+                                                  width="20" height="20" rx="5" ry="5"
+                                                  fill="rgba(255,255,255,0.28)" />
+                                            <text :x="col.leader.x + col.leader.w - 40"
+                                                  :y="col.leader.y + 20"
+                                                  text-anchor="middle" fill="#fff" font-size="12">✎</text>
+                                        </g>
+                                        <g class="action-btn" @click.stop="deleteGroup(col.group)">
+                                            <rect :x="col.leader.x + col.leader.w - 26" :y="col.leader.y + 6"
+                                                  width="20" height="20" rx="5" ry="5"
+                                                  fill="rgba(239,68,68,0.85)" />
+                                            <text :x="col.leader.x + col.leader.w - 16"
+                                                  :y="col.leader.y + 20"
+                                                  text-anchor="middle" fill="#fff" font-size="12">✕</text>
+                                        </g>
+                                    </g>
+                                </g>
+
+                                <!-- 组员卡 -->
+                                <g v-for="m in col.members" :key="m.id"
+                                   class="node-card member-card" @click="openEdit('member', m.id)"
+                                   :opacity="m.departureDate ? 0.6 : 1">
+                                    <rect :x="m.x" :y="m.y" :width="m.w" :height="m.h"
+                                          rx="12" ry="12"
+                                          fill="#f8fafc" stroke="#e5e7eb" stroke-width="1"
+                                          filter="url(#node-shadow-soft)" />
+                                    <!-- 左侧组色色条 -->
+                                    <rect :x="m.x" :y="m.y" width="4" :height="m.h"
+                                          :fill="groupColor(col.group.key)" />
+                                    <!-- 中文姓名 -->
+                                    <text :x="m.x + 14" :y="m.enName ? m.y + m.h/2 - 3 : m.y + m.h/2 + 5"
+                                          fill="#1f2937" font-size="13" font-weight="600"
+                                          :opacity="m.departureDate ? 0.8 : 1">{{ m.name }}</text>
+                                    <!-- 英文名（独占一行） -->
+                                    <text v-if="m.enName"
+                                          :x="m.x + 14" :y="m.y + m.h/2 + 14"
+                                          fill="#94a3b8" font-size="10" font-style="italic"
+                                          :opacity="m.departureDate ? 0.8 : 1">{{ m.enName }}</text>
+                                    <!-- 编制标签 -->
+                                    <g :opacity="m.departureDate ? 0.8 : 1">
+                                        <rect :x="m.x + m.w - 92" :y="m.y + m.h/2 - 10"
+                                              width="66" height="20" rx="10" ry="10"
+                                              :fill="affilBgColor(m.affiliation)" />
+                                        <text :x="m.x + m.w - 59" :y="m.y + m.h/2 + 4"
+                                              text-anchor="middle"
+                                              :fill="affilTextColor(m.affiliation)" font-size="10" font-weight="500">{{ getAffiliationLabel(m.affiliation) }}</text>
+                                    </g>
+                                    <!-- 离职时间显示（方框内右下角） -->
+                                    <text v-if="m.departureDate" :x="m.x + m.w - 85" :y="m.y + m.h - 8"
+                                          fill="#666" font-size="9" font-style="italic" text-anchor="start">
+                                        离职：{{ m.departureDate }}
+                                    </text>
+                                    <!-- 删除按钮 -->
+                                    <g class="node-actions">
+                                        <g class="action-btn" @click.stop="removeMember(m.id)">
+                                            <rect :x="m.x + m.w - 22" :y="m.y + m.h/2 - 9"
+                                                  width="16" height="16" rx="4" ry="4"
+                                                  fill="#fff" stroke="#fca5a5" stroke-width="1" />
+                                            <text :x="m.x + m.w - 14" :y="m.y + m.h/2 + 3"
+                                                  text-anchor="middle" fill="#ef4444" font-size="11">✕</text>
+                                        </g>
+                                    </g>
+                                </g>
+                                <!-- 组员块之间的竖线连接（实线方案一） -->
+                                <g v-if="col.members.length > 0">
+                                    <path v-for="(m, idx) in col.members.slice(0, -1)" :key="`link-${col.group.key}-${idx}`"
+                                          :d="`M ${m.x + m.w/2} ${m.y + m.h} L ${m.x + m.w/2} ${m.y + m.h + orgLayout.memberGap}`"
+                                          stroke="#64748b" stroke-width="3" stroke-linecap="round" />
+                                </g>
+                            </template>
+                            </g>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- 右侧三块 -->
+                <div class="right-column">
+                    <!-- 公司编制占比 -->
+                    <div class="chart-card">
+                        <div class="section-label">公司编制占比</div>
+                        <div class="chart-body">
+                            <div class="echart-pie" ref="affilChartRef"></div>
+                            <div class="stat-grid">
+                                <div class="stat-cell" v-for="item in affiliationPieData" :key="item.key"
+                                     :style="{ '--accent': item.color }">
+                                    <div class="s-num">{{ item.value }}</div>
+                                    <div class="s-percent">{{ getPercentage(item.value, affiliationPieData) }}%</div>
+                                    <div class="s-label">{{ item.label }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 各组占比 -->
+                    <div class="chart-card">
+                        <div class="section-label">各组占比</div>
+                        <div class="chart-body">
+                            <div class="echart-pie" ref="groupChartRef"></div>
+                            <div class="stat-grid">
+                                <div class="stat-cell" v-for="item in groupPieData" :key="item.key"
+                                     :style="{ '--accent': item.color }">
+                                    <div class="s-num">{{ item.value }}</div>
+                                    <div class="s-percent">{{ getPercentage(item.value, groupPieData) }}%</div>
+                                    <div class="s-label">{{ item.label }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 人员回收池 -->
+                    <div class="recycle-bin">
+                        <div class="section-label">人员回收池</div>
+                        <div class="recycle-list" v-if="recycleMembers.length">
+                            <div class="recycle-item" v-for="m in recycleMembers" :key="m.id">
+                                <div class="r-info">
+                                    <div class="r-name">{{ m.name }}</div>
+                                    <div class="r-meta">
+                                        {{ getAffiliationLabel(m.affiliation) }}
+                                        <span v-if="m.deleteReasonLabel"
+                                              class="r-reason-tag"
+                                              :class="{ 'r-reason-auto': m.deleteReason === 'auto-departure' }"
+                                              @click="startReasonEdit(m)"
+                                              :title="m.deleteReason === 'auto-departure' ? '系统自动转入，不可修改' : '点击修改离职原因'">
+                                            · {{ m.deleteReasonLabel }}
+                                            <span v-if="m.deleteReason !== 'auto-departure'" class="r-reason-edit-icon">✎</span>
+                                        </span>
+                                        <span v-if="m.operationTime || m.deleteTime" style="margin-left: 8px; color: #64748b;" :title="'\u64cd\u4f5c\u65f6\u95f4\uff1a\u7528\u6237\u70b9\u51fb\u201c\u786e\u8ba4\u5220\u9664\u201d\u7684\u65f6\u523b'">
+                                            · 操作：{{ m.operationTime || m.deleteTime }}
+                                        </span>
+                                        <span v-if="m.effectiveDepartureTime && m.effectiveDepartureTime !== (m.operationTime || m.deleteTime)" style="margin-left: 8px; color: #ea580c;" :title="'\u5b9e\u9645\u751f\u6548\u79bb\u804c\u65f6\u95f4'">
+                                            · 生效：{{ m.effectiveDepartureTime }}
+                                        </span>
+                                        <span v-if="m.departureDate" style="margin-left: 8px; color: #f97316;">
+                                            · 离职日期：{{ m.departureDate }}
+                                        </span>
+                                    </div>
+                                    <!-- 离职原因编辑面板 -->
+                                    <div v-if="editingReasonId === m.id" class="r-reason-editor">
+                                        <div class="r-reason-editor-row">
+                                            <label>离职原因</label>
+                                            <select v-model="editingReasonForm.reason">
+                                                <option v-for="opt in deleteReasonOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                                            </select>
+                                        </div>
+                                        <div class="r-reason-editor-row" v-if="editingReasonForm.reason === 'departure'">
+                                            <label>离职时间</label>
+                                            <input type="date" v-model="editingReasonForm.departureDate" />
+                                        </div>
+                                        <div class="r-reason-editor-actions">
+                                            <button class="r-note-save" @click="saveReasonEdit(m.id)">💾 保存</button>
+                                            <button class="r-note-cancel" @click="cancelReasonEdit">✕ 取消</button>
+                                        </div>
+                                    </div>
+                                    <!-- 备注行：支持内联编辑 -->
+                                    <div class="r-note-row">
+                                        <template v-if="editingNoteId === m.id">
+                                            <input class="r-note-input"
+                                                   v-model="editingNoteText"
+                                                   placeholder="输入备注内容"
+                                                   @keyup.enter="saveNoteEdit(m.id)"
+                                                   @keyup.esc="cancelNoteEdit"
+                                                   ref="noteInputRef" />
+                                            <button class="r-note-save" @click="saveNoteEdit(m.id)" title="保存（回车）">💾 保存</button>
+                                            <button class="r-note-cancel" @click="cancelNoteEdit" title="取消（Esc）">✕</button>
+                                        </template>
+                                        <template v-else>
+                                            <div v-if="m.note" class="r-note-text">备注：{{ m.note }}</div>
+                                            <button v-if="m.note" class="r-note-edit-btn" @click="startNoteEdit(m)" title="编辑备注">✎</button>
+                                            <button v-else class="r-note-add" @click="startNoteEdit(m)">+ 添加备注</button>
+                                        </template>
+                                    </div>
+                                </div>
+                                <div class="r-actions">
+                                    <button class="btn-restore" @click="restoreMember(m.id)">恢复</button>
+                                    <button class="btn-purge" @click="purgeMember(m.id)">彻底删除</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="recycle-empty" v-else>回收池为空</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 编辑模态框 -->
+        <div class="modal" v-if="showEditModal" @click="showEditModal = false">
+            <div class="modal-content" @click.stop>
+                <div class="modal-title">{{ editingTitle }}</div>
+                <div class="form-group">
+                    <label>中文姓名</label>
+                    <input v-model="editingForm.name" placeholder="请输入中文姓名" />
+                </div>
+                <div class="form-group">
+                    <label>英文名</label>
+                    <input v-model="editingForm.enName" placeholder="请输入英文名（可选）" />
+                </div>
+                <div class="form-group" v-if="editingType !== 'uipm'">
+                    <label>公司编制</label>
+                    <select v-model="editingForm.affiliation">
+                        <option value="group-formal">集团本部</option>
+                        <option value="group-intern">集团实习生</option>
+                        <option value="sub-formal">子公司</option>
+                        <option value="sub-intern">子公司实习生</option>
+                    </select>
+                </div>
+                <div class="form-group" v-if="editingType !== 'root' && editingType !== 'uipm'">
+                    <label>离职状态</label>
+                    <select v-model="editingForm.departureStatus">
+                        <option value="">在职</option>
+                        <option value="departure">将要离职</option>
+                    </select>
+                </div>
+                <div class="form-group" v-if="editingType !== 'root' && editingType !== 'uipm' && editingForm.departureStatus === 'departure'">
+                    <label>离职时间</label>
+                    <input type="date" v-model="editingForm.departureDate" />
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-ghost" @click="showEditModal = false">取消</button>
+                    <button class="btn btn-primary" @click="saveEdit">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 添加组别模态框 -->
+        <div class="modal" v-if="showAddGroupModal" @click="showAddGroupModal = false">
+            <div class="modal-content" @click.stop>
+                <div class="modal-title">添加组别</div>
+                <div class="form-group">
+                    <label>组别名称</label>
+                    <input v-model="newGroup.name" placeholder="如：体验组 / 测试组" />
+                </div>
+                <div class="form-group">
+                    <label>组长姓名（可手动输入或选择现有成员）</label>
+                    <input v-model="newGroup.leaderName" placeholder="请输入组长姓名" />
+                    <div style="margin-top: 6px; font-size: 11px; color: #64748b;">
+                        或从现有成员选择：
+                        <select v-model="newGroup.leaderId" style="font-size: 11px; padding: 2px 4px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                            <option :value="null">— 不选择 —</option>
+                            <option v-for="m in members" :key="m.id" :value="m.id">
+                                {{ m.name }}（当前：{{ groups.find(g => g.key === m.group)?.name || '未分组' }}）
+                            </option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>组别颜色</label>
+                    <div class="color-picker">
+                        <div v-for="c in colorPalette" :key="c"
+                             class="color-swatch"
+                             :class="{ active: newGroup.color === c }"
+                             :style="{ background: c }"
+                             @click="newGroup.color = c"></div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-ghost" @click="showAddGroupModal = false">取消</button>
+                    <button class="btn btn-primary" @click="confirmAddGroup">确认添加</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 重命名组别模态框 -->
+        <div class="modal" v-if="showRenameGroupModal" @click="showRenameGroupModal = false">
+            <div class="modal-content" @click.stop>
+                <div class="modal-title">重命名组别</div>
+                <div class="form-group">
+                    <label>新组别名称</label>
+                    <input v-model="renamingGroup.name" placeholder="请输入新名称" />
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-ghost" @click="showRenameGroupModal = false">取消</button>
+                    <button class="btn btn-primary" @click="confirmRenameGroup">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 添加成员模态框 -->
+        <div class="modal" v-if="showAddModal" @click="showAddModal = false">
+            <div class="modal-content" @click.stop>
+                <div class="modal-title">添加新成员</div>
+                <div class="form-group">
+                    <label>姓名（中英文可一起输入，系统自动识别）</label>
+                    <input v-model="newMember.rawName" placeholder="例：linxiao(林晓) 或 林晓 linxiao" />
+                    <div v-if="newMemberPreview.name || newMemberPreview.enName"
+                         style="margin-top:6px; font-size:11px; color:#64748b;">
+                        识别结果：
+                        <span v-if="newMemberPreview.name" style="color:#1e40af;">中文：{{ newMemberPreview.name }}</span>
+                        <span v-if="newMemberPreview.name && newMemberPreview.enName">　·　</span>
+                        <span v-if="newMemberPreview.enName" style="color:#0891b2;">英文：{{ newMemberPreview.enName }}</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>所属组别</label>
+                    <select v-model="newMember.group">
+                        <option v-for="group in groups" :key="group.key" :value="group.key">
+                            {{ group.name }}
+                        </option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>身份归属</label>
+                    <select v-model="newMember.affiliation">
+                        <option value="group-formal">集团本部</option>
+                        <option value="group-intern">集团实习生</option>
+                        <option value="sub-formal">子公司</option>
+                        <option value="sub-intern">子公司实习生</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>离职时间（可选）</label>
+                    <input type="date" v-model="newMember.departureDate" />
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-ghost" @click="showAddModal = false">取消</button>
+                    <button class="btn btn-primary" @click="addMember">确认添加</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 删除原因选择模态框 -->
+        <div class="modal" v-if="showDeleteReasonModal" @click="showDeleteReasonModal = false">
+            <div class="modal-content" @click.stop>
+                <div class="modal-title">删除成员：{{ deletingMemberName }}</div>
+                <div class="form-group">
+                    <label>删除时间类型（请确认）</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" value="immediate" v-model="deleteForm.timingType" />
+                            <span><strong>立即删除</strong>：当前时刻记录为离职生效时间</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" value="scheduled" v-model="deleteForm.timingType" />
+                            <span><strong>预设离职时间</strong>：选定日期后由系统自动转入回收池</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group" v-if="deleteForm.timingType === 'scheduled'">
+                    <label>预设离职日期</label>
+                    <input type="date" v-model="deleteForm.departureDate" />
+                    <div class="form-tip">到达该日期后，系统将自动将该人员从组织架构转入回收池</div>
+                </div>
+                <div class="form-group">
+                    <label>删除原因</label>
+                    <select v-model="deleteForm.reason">
+                        <option value="">请选择删除原因</option>
+                        <option v-for="option in deleteReasonOptions" :key="option.value" :value="option.value">
+                            {{ option.label }}
+                        </option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>备注（可选）</label>
+                    <input v-model="deleteForm.note" placeholder="补充说明，例如：合同到期 / 转岗 / 其他原因" />
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-ghost" @click="showDeleteReasonModal = false">取消</button>
+                    <button class="btn btn-primary" @click="confirmDeleteWithReason">确认删除</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 恢复确认模态框 -->
+        <div class="modal" v-if="showRestoreConfirmModal" @click="showRestoreConfirmModal = false">
+            <div class="modal-content" @click.stop>
+                <div class="modal-title">恢复人员确认</div>
+                <div class="restore-confirm-body">
+                    <div class="restore-confirm-icon">↻</div>
+                    <div class="restore-confirm-text">
+                        <p>确认将 <strong>{{ restoringMemberName }}</strong> 恢复到组织架构图吗？</p>
+                        <p class="restore-confirm-tip">
+                            恢复后状态将重置为 <strong style="color:#16a34a;">正常在职</strong>，并清除以下信息：
+                        </p>
+                        <ul class="restore-confirm-list">
+                            <li>删除原因与备注</li>
+                            <li>预设离职时间</li>
+                            <li>操作时间与生效离职时间</li>
+                        </ul>
+                        <p class="restore-confirm-tip">本次恢复将记入操作日志以供追溯。</p>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-ghost" @click="showRestoreConfirmModal = false">取消</button>
+                    <button class="btn btn-primary" @click="confirmRestore">确认恢复</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 初始导入向导 ===== -->
+        <div class="wizard-mask" v-if="showWizard">
+            <div class="wizard-panel">
+                <!-- 头部 -->
+                <div class="wizard-header">
+                    <div>
+                        <h2>👋 团队数据导入向导</h2>
+                        <div class="wizard-sub">{{ wizardSubtitle }}</div>
+                    </div>
+                    <button v-if="wizardCanSkip" class="wizard-skip" @click="skipWizard">跳过，使用默认示例</button>
+                </div>
+
+                <!-- 主体：唯一一张「电子表格」-->
+                <div class="wizard-body">
+                    <div class="wizard-subpage">
+                        <!-- 顶部统计带 -->
+                        <div v-if="previewIsEmpty" class="preview-empty-warn">
+                            ⚠️ 当前还没有任何人员。可在下方逐项填写，或点击底部「📋 粘贴 / 📂 JSON」一键导入。
+                        </div>
+                        <div v-else class="preview-summary">
+                            ✅ 当前共：<strong>{{ previewData.groups.length }}</strong> 个组别、<strong>{{ previewTotalMembers }}</strong> 名成员。直接编辑下表，无误后点击右下角「✓ 确认导入」。
+                        </div>
+
+                        <!-- 总负责人 -->
+                        <div class="preview-block">
+                            <div class="preview-block-header">
+                                <span>👑 总负责人</span><span class="pb-badge">必填</span>
+                            </div>
+                            <div class="preview-block-body">
+                                <div class="preview-row">
+                                    <input v-model="previewData.rootLeader.name" placeholder="中文姓名 *" />
+                                    <input v-model="previewData.rootLeader.enName" placeholder="英文名（可选）" />
+                                    <select v-model="previewData.rootLeader.affiliation">
+                                        <option value="">— 编制（可后补）—</option>
+                                        <option value="group-formal">集团本部</option>
+                                        <option value="group-intern">集团实习生</option>
+                                        <option value="sub-formal">子公司</option>
+                                        <option value="sub-intern">子公司实习生</option>
+                                    </select>
+                                    <span></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- UI PM -->
+                        <div class="preview-block">
+                            <div class="preview-block-header">
+                                <span style="display:inline-flex;align-items:center;gap:6px;">
+                                    <span>📌</span>
+                                    <input v-model="previewData.uiPM.role"
+                                           placeholder="UI PM"
+                                           style="font-size:13px;font-weight:600;border:1px solid #e2e8f0;padding:3px 8px;border-radius:5px;outline:none;width:120px;" />
+                                    <span style="font-size:11px;color:#94a3b8;font-weight:normal;">（PM 角色名，如 UI PM / 项目 PM）</span>
+                                </span>
+                                <span class="pb-badge" style="background:#94a3b8;">可选</span>
+                            </div>
+                            <div class="preview-block-body">
+                                <div class="preview-row">
+                                    <input v-model="previewData.uiPM.name" placeholder="中文姓名（留空则不显示 PM）" />
+                                    <input v-model="previewData.uiPM.enName" placeholder="英文名（可选）" />
+                                    <span></span>
+                                    <span></span>
+                                </div>
+
+                                <!-- PM 协助成员（不计入统计、不渲染主架构图） -->
+                                <div style="margin-top:10px;padding:10px 12px;background:#fff7ed;border:1px dashed #fdba74;border-radius:6px;">
+                                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                                        <span style="font-size:12px;font-weight:600;color:#c2410c;">🤝 PM 协助成员（{{ (previewData.pmExtras || []).length }} 人）</span>
+                                        <span style="font-size:11px;color:#94a3b8;">不计入人力统计，不出现在主架构图</span>
+                                    </div>
+                                    <div v-for="(p, pi) in (previewData.pmExtras || [])" :key="pi" class="preview-row" style="margin-bottom:6px;">
+                                        <input v-model="p.name" placeholder="中文姓名" />
+                                        <input v-model="p.enName" placeholder="英文名（可选）" />
+                                        <span></span>
+                                        <button class="row-del" @click="removePmExtra(pi)" title="删除">✕</button>
+                                    </div>
+                                    <button @click="addPmExtra()" style="margin-top:4px;padding:4px 10px;font-size:12px;border:1px dashed #fb923c;border-radius:5px;background:#ffedd5;color:#c2410c;cursor:pointer;">+ 添加 PM 协助成员</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 组别 + 成员（每组可改名 / 删除 / 增减成员） -->
+                        <div v-for="(g, gi) in previewData.groups" :key="g.key" class="preview-block">
+                            <div class="preview-block-header">
+                                <span>
+                                    <input v-model="g.name"
+                                           style="font-size:13px;font-weight:600;border:1px solid #e2e8f0;padding:3px 8px;border-radius:5px;outline:none;min-width:140px;"
+                                           placeholder="组名" />
+                                </span>
+                                <span style="display:flex;align-items:center;gap:8px;">
+                                    <span class="pb-badge">{{ g.members.length }} 人</span>
+                                    <button class="row-del" @click="removePreviewGroup(gi)" title="删除此组">✕</button>
+                                </span>
+                            </div>
+                            <div class="preview-block-body">
+                                <div class="preview-row" v-for="(m, mi) in g.members" :key="mi">
+                                    <input v-model="m.name" placeholder="中文姓名 *" />
+                                    <input v-model="m.enName" placeholder="英文名（可选）" />
+                                    <select v-model="m.affiliation">
+                                        <option value="">— 编制（可后补）—</option>
+                                        <option value="group-formal">集团本部</option>
+                                        <option value="group-intern">集团实习生</option>
+                                        <option value="sub-formal">子公司</option>
+                                        <option value="sub-intern">子公司实习生</option>
+                                    </select>
+                                    <button class="row-del" @click="g.members.splice(mi, 1)">✕</button>
+                                </div>
+                                <div v-if="g.members.length === 0" class="preview-empty" style="padding:14px 0;font-size:11px;">
+                                    暂无成员，点下方按钮添加
+                                </div>
+                            </div>
+                            <div class="preview-add-row">
+                                <button class="preview-add-btn" @click="addPreviewMember(gi, 'member')">+ 添加成员</button>
+                                <button class="preview-add-btn" v-if="!g.members.some(m => m.role === 'leader')" @click="addPreviewMember(gi, 'leader')">+ 设为组长</button>
+                                <span style="font-size:11px;color:#94a3b8;align-self:center;margin-left:6px;display:inline-flex;align-items:center;gap:6px;">
+                                    组长：
+                                    <select v-if="g.members.filter(m => m.name && m.name.trim()).length > 0"
+                                            :value="getLeaderIdx(g)"
+                                            @change="setLeader(gi, parseInt($event.target.value, 10))"
+                                            style="font-size:11px;padding:2px 6px;border:1px solid #cbd5e1;border-radius:4px;background:#fff;color:#475569;cursor:pointer;max-width:140px;">
+                                        <template v-for="(m, mi) in g.members" :key="mi"><option v-if="m.name && m.name.trim()" :value="mi">{{ m.name }}</option></template>
+                                    </select>
+                                    <strong v-else style="color:#94a3b8;">— 未指定（默认第一人）—</strong>
+                                </span>
+                            </div>
+                        </div>
+
+                        <button class="preview-add-btn" style="width:100%;padding:10px;margin-top:6px;" @click="addPreviewGroup">+ 新增一个组别</button>
+
+                        <!-- ============ 折叠：高级导入入口 ============ -->
+                        <div class="advanced-import">
+                            <div class="advanced-import-header" @click="advancedOpen = !advancedOpen">
+                                <span>🛠️ 批量 / 外部导入</span>
+                                <span class="adv-tools">
+                                    <button class="adv-chip" :class="{active: advancedTab==='text'}"   @click.stop="openAdv('text')">📋 粘贴文本</button>
+                                    <button class="adv-chip" :class="{active: advancedTab==='json'}"   @click.stop="openAdv('json')">📂 JSON</button>
+                                    <span class="adv-toggle">{{ advancedOpen ? '▲' : '▼' }}</span>
+                                </span>
+                            </div>
+
+                            <div v-if="advancedOpen" class="advanced-import-body">
+                                <!-- 📋 文本 -->
+                                <div v-if="advancedTab === 'text'">
+                                    <div class="adv-tip">
+                                        💡 支持三种格式自由混用：缩进树形 / 一行一组 / CSV-Tab。<strong>从 Excel 直接复制粘贴的 Tab 分隔表格也可识别。</strong>
+                                    </div>
+                                    <textarea class="wizard-textarea" v-model="textInputRaw" style="min-height:140px;"
+                                  placeholder="把任意花名册粘贴在这里，支持：&#10;1) 缩进树形：&#10;林晓（总负责人）&#10;  苏雅琴（职能B组组长）&#10;    吴佳&#10;&#10;2) 一行一组：&#10;职能B组：苏雅琴（组长）、吴佳&#10;&#10;3) CSV / Excel 复制（逗号 或 Tab 分隔）：&#10;姓名,角色,组别&#10;苏雅琴,组长,职能B组&#10;吴佳,成员,职能B组"></textarea>
+                                    <div class="wizard-template-row">
+                                        <button class="wizard-template-btn" @click="loadTextTemplate('tree')">📋 缩进树示例</button>
+                                        <button class="wizard-template-btn" @click="loadTextTemplate('line')">📋 一行一组示例</button>
+                                        <button class="wizard-template-btn" @click="loadTextTemplate('csv')">📋 CSV 示例</button>
+                                        <button class="wizard-template-btn" @click="textInputRaw = ''">🗑️ 清空</button>
+                                        <button class="btn btn-primary" style="margin-left:auto;font-size:12px;padding:5px 14px;"
+                                                :disabled="!textInputRaw.trim()" @click="applyAdvText">⤴ 解析并替换主表格</button>
+                                    </div>
+                                </div>
+
+                                <!-- 📂 JSON -->
+                                <div v-else-if="advancedTab === 'json'">
+                                    <div class="adv-tip">
+                                        💡 用其他 PM 导出的 .json 配置文件直接恢复全套数据（覆盖当前主表格）。
+                                    </div>
+                                    <div class="wizard-upload" @click="$refs.jsonFileInput.click()">
+                                        <div class="u-icon">📂</div>
+                                        <div class="u-tip">点击选择 .json 文件</div>
+                                        <div class="u-sub">导入前会询问确认，避免误覆盖</div>
+                                        <input ref="jsonFileInput" type="file" accept="application/json,.json" style="display:none" @change="onJsonFileChange" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 底栏 -->
+                <div class="wizard-footer">
+                    <div class="wizard-step-info">{{ wizardFooterInfo }}</div>
+                    <div class="footer-actions">
+                        <button v-if="wizardCanSkip" class="btn btn-ghost" @click="skipWizard">取消，使用默认示例</button>
+                        <button class="btn btn-primary" :disabled="previewIsEmpty" @click="confirmImport">✓ 确认导入</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast 提示 -->
+        <div class="toast-wrap">
+            <transition-group name="toast">
+                <div v-for="t in toasts" :key="t.id" class="toast-item" :class="'toast-' + t.type">
+                    <span class="toast-icon">{{ t.type === 'success' ? '✓' : (t.type === 'warn' ? '!' : 'i') }}</span>
+                    <span class="toast-msg">{{ t.message }}</span>
+                </div>
+            </transition-group>
+        </div>
+    </div>
+
+    <script>
+        // 等待Vue库加载完成
+        if (typeof Vue === 'undefined') {
+            console.error('Vue库未正确加载，请检查网络连接');
+        }
+        
+        const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
+
+        // ===== localStorage 持久化 =====
+        const STORAGE_KEY = 'higame-ui-data-v4';
+        const loadFromStorage = () => {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return null;
+                const data = JSON.parse(raw);
+                if (!data || typeof data !== 'object') return null;
+                return data;
+            } catch (e) {
+                console.warn('读取本地数据失败：', e);
+                return null;
+            }
+        };
+        const saveToStorage = (payload) => {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+            } catch (e) {
+                console.warn('保存本地数据失败：', e);
+            }
+        };
+        const SAVED_DATA = loadFromStorage();
+
+        // ===== 自动迁移：把旧组名强制覆盖为最新职能ABCD命名 =====
+        const GROUP_KEY_TO_NAME = {
+            interaction: '职能A组',
+            visual:      '职能B组',
+            refactor:    '职能C组',
+            motion:      '职能D组',
+        };
+        if (SAVED_DATA && Array.isArray(SAVED_DATA.groups)) {
+            SAVED_DATA.groups.forEach(g => {
+                if (g && g.key && GROUP_KEY_TO_NAME[g.key]) {
+                    g.name = GROUP_KEY_TO_NAME[g.key];
+                }
+            });
+        }
+
+        const app = createApp({
+            setup() {
+                const currentTime = ref('');
+                const deadlineDate = ref('2026.05.20');
+
+                const GROUP_COLORS = {
+                    interaction: '#4F7CD9',
+                    visual:      '#7CC576',
+                    refactor:    '#F4B942',
+                    motion:      '#E15B5B',
+                };
+                const AFFIL_COLORS = {
+                    'group-formal': '#1e3a8a',  // 腾讯正职：深蓝色
+                    'group-intern': '#3b82f6',  // 集团实习生：中蓝色
+                    'sub-formal':   '#60a5fa',  // 子公司：浅蓝色
+                    'sub-intern':   '#bfdbfe',  // 子公司实习生：最浅蓝色
+                };
+                const AFFIL_LABELS = {
+                    'group-formal': '集团本部',
+                    'group-intern': '集团实习生',
+                    'sub-formal':   '子公司',
+                    'sub-intern':   '子公司实习生',
+                };
+                const AFFIL_ORDER = {
+                    'group-formal': 1,
+                    'sub-formal':   2,
+                    'group-intern': 3,
+                    'sub-intern':   4,
+                };
+
+                const DEFAULT_GROUPS = [
+                    { key: 'interaction', name: '职能A组', leaderId: 1 },
+                    { key: 'visual',      name: '职能B组', leaderId: 3 },
+                    { key: 'refactor',    name: '职能C组', leaderId: 5 },
+                    { key: 'motion',      name: '职能D组', leaderId: 6 },
+                ];
+                const DEFAULT_ROOT = { id: 1, name: '林晓', enName: 'linxiao', affiliation: 'group-formal', departureDate: '' };
+                const DEFAULT_UIPM = { name: '陈璐', enName: 'chenlu', role: 'UI PM', departureDate: '' };
+                const DEFAULT_GROUP_COLORS = { ...GROUP_COLORS };
+
+                // 如果本地有保存的自定义组别颜色，恢复到 GROUP_COLORS
+                if (SAVED_DATA && SAVED_DATA.groupColors) {
+                    Object.assign(GROUP_COLORS, SAVED_DATA.groupColors);
+                }
+
+                const groups = ref(SAVED_DATA?.groups || DEFAULT_GROUPS);
+                const rootLeader = ref(SAVED_DATA?.rootLeader || DEFAULT_ROOT);
+                const uiPM = ref({ ...DEFAULT_UIPM, ...(SAVED_DATA?.uiPM || {}) });
+                const uiPMTeam = ref(Array.isArray(SAVED_DATA?.uiPMTeam) ? SAVED_DATA.uiPMTeam.map(p => ({ name: p.name || '', enName: p.enName || '' })) : []);
+
+                const DEFAULT_MEMBERS = [
+                    { id: 1, name: '林晓',   enName: 'linxiao',  group: 'interaction', affiliation: 'group-formal', departureDate: '' },
+                    { id: 2, name: '李泽',   enName: 'lize',     group: 'interaction', affiliation: 'sub-formal',   departureDate: '' },
+                    { id: 3, name: '苏雅琴', enName: 'suyaqin',  group: 'visual',      affiliation: 'group-formal', departureDate: '' },
+                    { id: 4, name: '吴佳',   enName: 'wujia',    group: 'visual',      affiliation: 'sub-formal',   departureDate: '' },
+                    { id: 5, name: '周明轩', enName: 'zhouming', group: 'refactor',    affiliation: 'sub-formal',   departureDate: '' },
+                    { id: 6, name: '王诗雨', enName: 'wangsy',   group: 'motion',      affiliation: 'sub-formal',   departureDate: '' },
+                ];
+                const members = ref(SAVED_DATA?.members || DEFAULT_MEMBERS);
+
+                const showAddModal = ref(false);
+                const newMember = ref({ rawName: '', name: '', enName: '', group: 'interaction', affiliation: 'group-formal', departureDate: '' });
+
+                // 输入任意顺序中英文名，自动拆分
+                const parseNameInput = (raw) => {
+                    if (!raw) return { name: '', enName: '' };
+                    const text = String(raw).trim();
+                    let cn = '', en = '';
+                    // 1) 括号格式：“linxiao(林晓)” 或 “林晓(linxiao)”，兼容全角括号
+                    const bracketMatch = text.match(/^([^()（）]+)\s*[(（]\s*([^()（）]+?)\s*[)）]\s*$/);
+                    if (bracketMatch) {
+                        const a = bracketMatch[1].trim();
+                        const b = bracketMatch[2].trim();
+                        if (/[\u4e00-\u9fa5]/.test(a)) { cn = a; en = b; }
+                        else                            { cn = b; en = a; }
+                        return { name: cn, enName: en };
+                    }
+                    // 2) 含中文则拆分：中文连续字符 + 非中文连续字符
+                    const cnMatch = text.match(/[\u4e00-\u9fa5]+/g);
+                    const enMatch = text.match(/[A-Za-z][A-Za-z0-9_\.\-\s]*/g);
+                    if (cnMatch) cn = cnMatch.join('');
+                    if (enMatch) en = enMatch.join(' ').trim();
+                    // 3) 如果只有中文或只有英文，另一侧留空
+                    return { name: cn, enName: en };
+                };
+
+                // ===== 组别管理 =====
+                const colorPalette = [
+                    '#4F7CD9', '#7CC576', '#F4B942', '#E15B5B',
+                    '#8b5cf6', '#06b6d4', '#ec4899', '#10b981',
+                    '#f97316', '#6366f1',
+                ];
+                const showAddGroupModal = ref(false);
+                const newGroup = ref({ name: '', leaderId: null, color: '#8b5cf6' });
+                const showRenameGroupModal = ref(false);
+                const renamingGroup = ref({ key: '', name: '' });
+
+                const openAddGroup = () => {
+                    newGroup.value = { name: '', leaderId: null, color: '#8b5cf6' };
+                    showAddGroupModal.value = true;
+                };
+                const confirmAddGroup = () => {
+                    const name = (newGroup.value.name || '').trim();
+                    if (!name) { alert('请输入组别名称'); return; }
+                    if (groups.value.some(g => g.name === name)) { alert('该组别名称已存在'); return; }
+                    let key = 'g_' + Date.now().toString(36);
+                    while (groups.value.some(g => g.key === key)) key += '_';
+                    GROUP_COLORS[key] = newGroup.value.color;
+                    
+                    let leaderId = newGroup.value.leaderId;
+                    const leaderName = (newGroup.value.leaderName || '').trim();
+                    
+                    // 如果手动输入了组长姓名，创建新成员
+                    if (leaderName && !leaderId) {
+                        const newId = Math.max(...members.value.map(m => m.id), 0) + 1;
+                        const newMember = {
+                            id: newId,
+                            name: leaderName,
+                            enName: '',
+                            group: key,
+                            affiliation: 'group-formal',
+                            departureDate: ''
+                        };
+                        members.value.push(newMember);
+                        leaderId = newId;
+                    }
+                    
+                    if (leaderId != null) {
+                        const m = members.value.find(mm => mm.id === leaderId);
+                        if (m) m.group = key;
+                    }
+                    
+                    groups.value.push({ key, name, leaderId: leaderId ?? null });
+                    showAddGroupModal.value = false;
+                    touchUpdateTime();
+                };
+                const openRenameGroup = (group) => {
+                    renamingGroup.value = { key: group.key, name: group.name };
+                    showRenameGroupModal.value = true;
+                };
+                const confirmRenameGroup = () => {
+                    const name = (renamingGroup.value.name || '').trim();
+                    if (!name) { alert('请输入新名称'); return; }
+                    const g = groups.value.find(gg => gg.key === renamingGroup.value.key);
+                    if (g) g.name = name;
+                    showRenameGroupModal.value = false;
+                    touchUpdateTime();
+                };
+                const deleteGroup = (group) => {
+                    if (groups.value.length <= 1) { alert('至少需要保留一个组别'); return; }
+                    const groupMembers = members.value.filter(m => m.group === group.key);
+                    const msg = `确定删除「${group.name}」吗？\n该组 ${groupMembers.length} 名成员将全部移入回收池。`;
+                    if (!confirm(msg)) return;
+                    groupMembers.forEach(m => recycleMembers.value.push({ ...m }));
+                    members.value = members.value.filter(m => m.group !== group.key);
+                    groups.value = groups.value.filter(gg => gg.key !== group.key);
+                    touchUpdateTime();
+                };
+
+                // ===== 编辑模态框 =====
+                const showEditModal = ref(false);
+                const editingType = ref('member'); // 'member' | 'leader' | 'root' | 'uipm'
+                const editingId = ref(null);
+                const editingForm = ref({ name: '', enName: '', affiliation: 'group-formal', departureDate: '' });
+                const editingTitle = computed(() => {
+                    if (editingType.value === 'root')   return '编辑 - UI 职能总负责人';
+                    if (editingType.value === 'leader') return '编辑 - 组长';
+                    if (editingType.value === 'uipm')   return '编辑 - UI PM';
+                    return '编辑 - 组员';
+                });
+
+                // ===== 删除原因选择模态框 =====
+                const showDeleteReasonModal = ref(false);
+                const deletingMemberId = ref(null);
+                const deletingMemberName = ref('');
+                const deleteReasonOptions = [
+                    { value: 'mistake', label: '误删' },
+                    { value: 'error', label: '填写错误' },
+                    { value: 'departure', label: '将要离职' }
+                ];
+                const deleteForm = ref({ reason: '', departureDate: '', note: '', timingType: 'immediate' });
+
+                // ===== Toast 提示（需要在删除/恢复逻辑之前定义）=====
+                const toasts = ref([]);
+                let toastIdSeq = 0;
+                const showToast = (message, type = 'info', duration = 2600) => {
+                    const id = ++toastIdSeq;
+                    toasts.value.push({ id, message, type });
+                    setTimeout(() => {
+                        toasts.value = toasts.value.filter(t => t.id !== id);
+                    }, duration);
+                };
+
+                const openEdit = (type, id = null) => {
+                    editingType.value = type;
+                    editingId.value = id;
+                    if (type === 'root') {
+                        editingForm.value = {
+                            name: rootLeader.value.name,
+                            enName: rootLeader.value.enName || '',
+                            affiliation: rootLeader.value.affiliation,
+                            departureStatus: rootLeader.value.departureDate ? 'departure' : '',
+                            departureDate: rootLeader.value.departureDate || '',
+                        };
+                    } else if (type === 'uipm') {
+                        editingForm.value = { 
+                            name: uiPM.value.name, 
+                            enName: uiPM.value.enName || '', 
+                            affiliation: 'group-formal', 
+                            departureStatus: uiPM.value.departureDate ? 'departure' : '',
+                            departureDate: uiPM.value.departureDate || '' 
+                        };
+                    } else {
+                        const m = members.value.find(mm => mm.id === id);
+                        if (!m) return;
+                        editingForm.value = { 
+                            name: m.name, 
+                            enName: m.enName || '', 
+                            affiliation: m.affiliation, 
+                            departureStatus: m.departureDate ? 'departure' : '',
+                            departureDate: m.departureDate || '' 
+                        };
+                    }
+                    showEditModal.value = true;
+                };
+
+                const saveEdit = () => {
+                    const name = (editingForm.value.name || '').trim();
+                    const enName = (editingForm.value.enName || '').trim();
+                    if (!name) { alert('请输入姓名'); return; }
+                    
+                    // 根据离职状态决定是否保存离职时间
+                    const departureDate = editingForm.value.departureStatus === 'departure' ? editingForm.value.departureDate || '' : '';
+                    
+                    if (editingType.value === 'root') {
+                        const oldId = rootLeader.value.id;
+                        rootLeader.value = {
+                            ...rootLeader.value,
+                            name,
+                            enName,
+                            affiliation: editingForm.value.affiliation,
+                            departureDate: departureDate,
+                        };
+                        const m = members.value.find(mm => mm.id === oldId);
+                        if (m) { 
+                            m.name = name; 
+                            m.enName = enName; 
+                            m.affiliation = editingForm.value.affiliation; 
+                            m.departureDate = departureDate;
+                        }
+                    } else if (editingType.value === 'uipm') {
+                        uiPM.value = {
+                            ...uiPM.value,
+                            name,
+                            enName,
+                            departureDate: departureDate
+                        };
+                    } else {
+                        const m = members.value.find(mm => mm.id === editingId.value);
+                        if (!m) return;
+                        m.name = name;
+                        m.enName = enName;
+                        m.affiliation = editingForm.value.affiliation;
+                        m.departureDate = departureDate;
+                        if (rootLeader.value.id === m.id) {
+                            rootLeader.value = { 
+                                ...rootLeader.value, 
+                                name, 
+                                enName, 
+                                affiliation: editingForm.value.affiliation,
+                                departureDate: departureDate,
+                            };
+                        }
+                    }
+                    showEditModal.value = false;
+                    touchUpdateTime();
+                };
+
+                // ===== 工具方法 =====
+                const groupColor = (key) => GROUP_COLORS[key] || '#999';
+                const getAffiliationLabel = (a) => AFFIL_LABELS[a] || a;
+                const formatDepartureDate = (dateStr) => {
+                    if (!dateStr) return '';
+                    const date = new Date(dateStr);
+                    if (isNaN(date.getTime())) return '';
+                    const now = new Date();
+                    const diffDays = Math.ceil((date - now) / (1000 * 60 * 60 * 24));
+                    
+                    if (diffDays <= 7) return '本周离职';
+                    if (diffDays <= 30) return `${diffDays}天后`;
+                    return `${date.getMonth()+1}月${date.getDate()}日`;
+                };
+                const AFFIL_BG_COLORS = {
+                    'group-formal': '#1e3a8a',  // 对齐饼图色：深蓝色
+                    'group-intern': '#3b82f6',  // 对齐饼图色：中蓝色
+                    'sub-formal':   '#60a5fa',  // 对齐饼图色：浅蓝色
+                    'sub-intern':   '#bfdbfe',  // 对齐饼图色：最浅蓝色
+                };
+                const AFFIL_TEXT_COLORS = {
+                    'group-formal': '#ffffff',  // 深底用白字
+                    'group-intern': '#ffffff',  // 中蓝底用白字
+                    'sub-formal':   '#1e3a8a',  // 浅蓝底用深蓝字
+                    'sub-intern':   '#1e3a8a',  // 最浅蓝底用深蓝字
+                };
+                const affilBgColor   = (a) => AFFIL_BG_COLORS[a]   || '#f1f5f9';
+                const affilTextColor = (a) => AFFIL_TEXT_COLORS[a] || '#64748b';
+                const countByAffiliation = (a) => members.value.filter(m => m.affiliation === a).length;
+                const getGroupMemberCount = (key) => members.value.filter(m => m.group === key).length;
+                const getPercentage = (value, dataArray) => {
+                    const total = dataArray.reduce((sum, item) => sum + item.value, 0);
+                    return total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                };
+                const getGroupLeader = (key) => {
+                    const g = groups.value.find(g => g.key === key);
+                    if (!g) return null;
+                    return members.value.find(m => m.id === g.leaderId);
+                };
+                const getGroupNonLeaderMembers = (key) => {
+                    const g = groups.value.find(gg => gg.key === key);
+                    return members.value
+                        .filter(m => m.group === key && m.id !== g?.leaderId)
+                        .sort((a, b) => (AFFIL_ORDER[a.affiliation] || 99) - (AFFIL_ORDER[b.affiliation] || 99));
+                };
+
+                // ===== 框架图布局（全 SVG） =====
+                const orgLayout = computed(() => {
+                    const cols = groups.value.length;
+                    // 参考图：紧凑布局，列间距可适当加大，组员间距缩小
+                    const colWidth = 240;
+                    const colGap = 24;
+                    const sideMargin = 36;
+                    const width = cols * colWidth + (cols - 1) * colGap + sideMargin * 2;
+
+                    // 顶层
+                    const rootW = 220, rootH = 96;
+                    const rootX = (width - rootW) / 2;
+                    const rootY = 20;
+
+                    // UI PM
+                    const pmW = 110, pmH = 60;
+                    const pmX = width - pmW - sideMargin;
+                    const pmY = 38;
+
+                    // 组长 row
+                    const leaderH = 88;
+                    const leaderY = rootY + rootH + 56;
+
+                    // 组员
+                    const memberW = colWidth;
+                    const memberH = 45;
+                    const memberGap = 32;  // 大幅增加组员间距，让竖线更明显
+                    const membersTopOffset = 22;
+
+                    // 计算每列 X
+                    const totalGroupsW = cols * colWidth + (cols - 1) * colGap;
+                    const startX = (width - totalGroupsW) / 2;
+
+                    const columns = groups.value.map((g, i) => {
+                        const colX = startX + i * (colWidth + colGap);
+                        const leader = { x: colX, y: leaderY, w: colWidth, h: leaderH };
+                        const leaderObj = getGroupLeader(g.key);
+                        const memList = getGroupNonLeaderMembers(g.key);
+                        const memY0 = leaderY + leaderH + membersTopOffset;
+                        const members = memList.map((m, idx) => ({
+                            ...m,
+                            x: colX,
+                            y: memY0 + idx * (memberH + memberGap),
+                            w: memberW,
+                            h: memberH,
+                        }));
+                        return {
+                            group: g,
+                            leader,
+                            leaderId: g.leaderId,
+                            leaderObj: leaderObj,
+                            leaderName: leaderObj ? leaderObj.name : '',
+                            leaderEnName: leaderObj ? (leaderObj.enName || '') : '',
+                            leaderAffil: leaderObj ? AFFIL_LABELS[leaderObj.affiliation] : '',
+                            members,
+                        };
+                    });
+
+                    // 求出最长列高度
+                    const maxBottom = columns.reduce((h, col) => {
+                        const last = col.members[col.members.length - 1];
+                        const bottom = last ? last.y + last.h : col.leader.y + col.leader.h;
+                        return Math.max(h, bottom);
+                    }, leaderY + leaderH);
+                    const height = maxBottom + 32;
+
+                    // ===== 连线 =====
+                    const connectorPaths = [];
+                    // 1) 总负责人底部 → 中间水平干线
+                    const trunkY = rootY + rootH + 30;
+                    const rootCx = rootX + rootW / 2;
+                    connectorPaths.push({
+                        id: 'trunk-down',
+                        d: `M ${rootCx} ${rootY + rootH} L ${rootCx} ${trunkY}`,
+                        stroke: '#cbd5e1', width: 1.5,
+                    });
+                    // 横向干线 = 第一列中点 → 末列中点
+                    if (columns.length > 0) {
+                        const firstCx = columns[0].leader.x + columns[0].leader.w / 2;
+                        const lastCx = columns[columns.length - 1].leader.x + columns[columns.length - 1].leader.w / 2;
+                        connectorPaths.push({
+                            id: 'trunk-h',
+                            d: `M ${firstCx} ${trunkY} L ${lastCx} ${trunkY}`,
+                            stroke: '#cbd5e1', width: 1.5,
+                        });
+                    }
+                    // 2) 干线 → 各组长顶部
+                    columns.forEach((col, i) => {
+                        const cx = col.leader.x + col.leader.w / 2;
+                        connectorPaths.push({
+                            id: `col-${i}-down`,
+                            d: `M ${cx} ${trunkY} L ${cx} ${col.leader.y}`,
+                            stroke: '#cbd5e1', width: 1.5,
+                        });
+                    });
+                    // 3) UI PM → 总负责人（虚线、PM色）
+                    const pmStartX = pmX;
+                    const pmStartY = pmY + pmH / 2;
+                    const rootRightX = rootX + rootW;
+                    const rootRightY = rootY + rootH / 2;
+                    const dx = Math.max(40, (pmStartX - rootRightX) * 0.5);
+                    connectorPaths.push({
+                        id: 'pm-link',
+                        d: `M ${pmStartX} ${pmStartY} C ${pmStartX - dx} ${pmStartY}, ${rootRightX + dx} ${rootRightY}, ${rootRightX} ${rootRightY}`,
+                        stroke: '#6366f1', width: 2, dash: '6 4', opacity: 0.75,
+                    });
+
+                    // 计算 SVG 在容器中的最小显示高度（基于宽高比，确保宽度100%自适应时高度合理）
+                    // 当列数较多或成员较多时，让 SVG 按真实比例铺开，超出部分由外层滚动
+                    const minDisplayHeight = Math.max(520, height * 0.6);
+
+                    return {
+                        width, height,
+                        minDisplayHeight,
+                        root: { x: rootX, y: rootY, w: rootW, h: rootH },
+                        pm:   { x: pmX,   y: pmY,   w: pmW,   h: pmH },
+                        columns,
+                        connectorPaths,
+                        memberGap,
+                    };
+                });
+
+                // ===== 饼图数据 =====
+                const affiliationPieData = computed(() => {
+                    return [
+                        { key: 'group-formal', label: '集团本部',    value: countByAffiliation('group-formal'), color: AFFIL_COLORS['group-formal'] },
+                        { key: 'group-intern', label: '集团实习生',  value: countByAffiliation('group-intern'), color: AFFIL_COLORS['group-intern'] },
+                        { key: 'sub-formal',   label: '子公司',      value: countByAffiliation('sub-formal'),   color: AFFIL_COLORS['sub-formal'] },
+                        { key: 'sub-intern',   label: '子公司实习生',value: countByAffiliation('sub-intern'),   color: AFFIL_COLORS['sub-intern'] },
+                    ];
+                });
+                const groupPieData = computed(() => {
+                    return groups.value.map(g => ({
+                        key: g.key,
+                        label: g.name,
+                        value: getGroupMemberCount(g.key),
+                        color: GROUP_COLORS[g.key],
+                    })).filter(d => d.value > 0);
+                });
+
+                // ===== 组织架构图缩放/平移 =====
+                const orgWrapRef = ref(null);
+                const wrapSize = ref({ w: 0, h: 0 });
+                const userScale = ref(1);          // 用户额外缩放倍率（1代表默认80%适配）
+                const pan = ref({ x: 0, y: 0 });   // 平移偏移量（容器像素为单位）
+                const isDragging = ref(false);
+                const FIT_RATIO = 0.8;             // 默认占容器 80%
+
+                // 计算适配比例：SVG 内容被缩放到容器 80%
+                const fitScale = computed(() => {
+                    const cw = wrapSize.value.w || 1;
+                    const ch = wrapSize.value.h || 1;
+                    const iw = orgLayout.value.width || 1;
+                    const ih = orgLayout.value.height || 1;
+                    const sx = (cw * FIT_RATIO) / iw;
+                    const sy = (ch * FIT_RATIO) / ih;
+                    return Math.min(sx, sy);
+                });
+
+                // 对外显示的总缩放比：userScale=1 时 = 80%
+                const displayScale = computed(() => userScale.value * FIT_RATIO);
+
+                // 计算 SVG 内层 g 的 transform：先平移到容器中心 → 缩放 → 让内容居中
+                const canvasTransform = computed(() => {
+                    const cw = wrapSize.value.w || 1;
+                    const ch = wrapSize.value.h || 1;
+                    const iw = orgLayout.value.width;
+                    const ih = orgLayout.value.height;
+                    const s = fitScale.value * userScale.value;
+                    // 内容居中的偏移
+                    let tx = (cw - iw * s) / 2 + pan.value.x;
+                    let ty = (ch - ih * s) / 2 + pan.value.y;
+                    // 顶部对齐：内容高 > 容器高时，贴顶
+                    if (ih * s > ch) {
+                        ty = pan.value.y + 8;
+                    }
+                    return `translate(${tx}, ${ty}) scale(${s})`;
+                });
+
+                const resetView = () => {
+                    userScale.value = 1;
+                    pan.value = { x: 0, y: 0 };
+                };
+                const zoomIn  = () => { userScale.value = Math.min(userScale.value * 1.15, 3); };
+                const zoomOut = () => { userScale.value = Math.max(userScale.value * 0.85, 0.3); };
+
+                const onWheelZoom = (e) => {
+                    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                    const next = Math.max(0.3, Math.min(3, userScale.value * delta));
+                    userScale.value = next;
+                };
+
+                let _dragStart = null;
+                const onPanStart = (e) => {
+                    if (e.button !== 0) return;
+                    isDragging.value = true;
+                    _dragStart = { x: e.clientX, y: e.clientY, panX: pan.value.x, panY: pan.value.y };
+                    window.addEventListener('mousemove', onPanMove);
+                    window.addEventListener('mouseup', onPanEnd);
+                };
+                const onPanMove = (e) => {
+                    if (!_dragStart) return;
+                    pan.value = {
+                        x: _dragStart.panX + (e.clientX - _dragStart.x),
+                        y: _dragStart.panY + (e.clientY - _dragStart.y),
+                    };
+                };
+                const onPanEnd = () => {
+                    isDragging.value = false;
+                    _dragStart = null;
+                    window.removeEventListener('mousemove', onPanMove);
+                    window.removeEventListener('mouseup', onPanEnd);
+                };
+
+                // ===== ECharts 实例 =====
+                const affilChartRef = ref(null);
+                const groupChartRef = ref(null);
+                let affilChart = null;
+                let groupChart = null;
+
+                const buildPieOption = (data) => {
+                    const total = data.reduce((sum, d) => sum + d.value, 0);
+                    return {
+                        color: data.map(d => d.color),
+                        tooltip: {
+                            trigger: 'item',
+                            formatter: (params) => {
+                                const percent = total > 0 ? ((params.value / total) * 100).toFixed(1) : 0;
+                                return `${params.name}：${params.value} 人 (${percent}%)`;
+                            },
+                            backgroundColor: 'rgba(30, 41, 59, 0.92)',
+                            borderWidth: 0,
+                            textStyle: { color: '#fff', fontSize: 12 },
+                            padding: [8, 12],
+                        },
+                        series: [{
+                            type: 'pie',
+                            radius: ['58%', '88%'],
+                            center: ['50%', '50%'],
+                            avoidLabelOverlap: true,
+                            itemStyle: {
+                                borderColor: '#fff',
+                                borderWidth: 3,
+                                shadowBlur: 8,
+                                shadowColor: 'rgba(15, 23, 42, 0.12)',
+                            },
+                            label: { 
+                                show: true,
+                                position: 'outside',
+                                formatter: (params) => {
+                                    const percent = total > 0 ? ((params.value / total) * 100).toFixed(1) : 0;
+                                    return `{name|${params.name}}\n{percent|${percent}%}`;
+                                },
+                                rich: {
+                                    name: {
+                                        fontSize: 11,
+                                        color: '#64748b',
+                                        lineHeight: 16
+                                    },
+                                    percent: {
+                                        fontSize: 14,
+                                        fontWeight: 'bold',
+                                        color: '#1e293b',
+                                        lineHeight: 16
+                                    }
+                                }
+                            },
+                            labelLine: { 
+                                show: true,
+                                length: 15,
+                                length2: 10
+                            },
+                            emphasis: {
+                                scale: true,
+                                scaleSize: 10,
+                                itemStyle: {
+                                    shadowBlur: 16,
+                                    shadowColor: 'rgba(0,0,0,0.28)',
+                                },
+                            },
+                            data: data.map(d => ({ name: d.label, value: d.value })),
+                        }],
+                    };
+                };
+
+                const renderCharts = () => {
+                    if (affilChart) {
+                        affilChart.setOption(buildPieOption(affiliationPieData.value), true);
+                        affilChart.resize();
+                    }
+                    if (groupChart) {
+                        groupChart.setOption(buildPieOption(groupPieData.value), true);
+                        groupChart.resize();
+                    }
+                };
+
+                // ===== 时间 =====
+                const touchUpdateTime = () => {
+                    const now = new Date();
+                    const pad = (n) => String(n).padStart(2, '0');
+                    currentTime.value = `${now.getFullYear()}.${pad(now.getMonth()+1)}.${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+                };
+
+                // ===== 增删 =====
+                const addMember = () => {
+                    const raw = (newMember.value.rawName || '').trim();
+                    if (!raw) { alert('请输入姓名'); return; }
+                    const { name, enName } = parseNameInput(raw);
+                    if (!name && !enName) { alert('姓名解析失败'); return; }
+                    const newId = Math.max(...members.value.map(m => m.id), 0) + 1;
+                    members.value.push({
+                        id: newId,
+                        name: name || enName,
+                        enName: enName,
+                        group: newMember.value.group,
+                        affiliation: newMember.value.affiliation,
+                        departureDate: newMember.value.departureDate || '',
+                    });
+                    newMember.value = { rawName: '', name: '', enName: '', group: 'interaction', affiliation: 'group-formal', departureDate: '' };
+                    showAddModal.value = false;
+                    touchUpdateTime();
+                };
+                const removeMember = (id) => {
+                    if (groups.value.some(g => g.leaderId === id)) {
+                        alert('该成员是组长，请先更换组长后再删除');
+                        return;
+                    }
+                    const member = members.value.find(m => m.id === id);
+                    if (!member) return;
+                    
+                    // 打开删除原因选择对话框
+                    deletingMemberId.value = id;
+                    deletingMemberName.value = member.name;
+                    deleteForm.value = {
+                        reason: '',
+                        departureDate: member.departureDate || '',
+                        note: '',
+                        timingType: 'immediate'
+                    };
+                    showDeleteReasonModal.value = true;
+                };
+
+                const confirmDeleteWithReason = () => {
+                    if (!deleteForm.value.reason) {
+                        alert('请选择删除原因');
+                        return;
+                    }
+                    if (!deleteForm.value.timingType) {
+                        alert('请选择删除时间类型');
+                        return;
+                    }
+                    if (deleteForm.value.timingType === 'scheduled' && !deleteForm.value.departureDate) {
+                        alert('请选择预设离职日期');
+                        return;
+                    }
+
+                    const member = members.value.find(m => m.id === deletingMemberId.value);
+                    if (!member) return;
+
+                    const now = new Date();
+                    const todayStr = now.toISOString().split('T')[0];
+                    const operationTime = now.getFullYear() + '-' +
+                        String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                        String(now.getDate()).padStart(2, '0') + ' ' +
+                        String(now.getHours()).padStart(2, '0') + ':' +
+                        String(now.getMinutes()).padStart(2, '0') + ':' +
+                        String(now.getSeconds()).padStart(2, '0');
+
+                    const deleteReasonLabel = deleteReasonOptions.find(r => r.value === deleteForm.value.reason)?.label || deleteForm.value.reason;
+                    const isScheduled = deleteForm.value.timingType === 'scheduled';
+
+                    if (isScheduled) {
+                        // 预设离职：人员仍留在架构中，打上“待离职”状态，等自动检测转入
+                        member.departureDate = deleteForm.value.departureDate;
+                        member.status = 'pending-departure';
+                        member.pendingReason = deleteForm.value.reason;
+                        member.pendingReasonLabel = deleteReasonLabel;
+                        member.pendingNote = (deleteForm.value.note || '').trim();
+                        member.operationTime = operationTime;
+                        showToast(`已预设 ${member.name} 于 ${deleteForm.value.departureDate} 自动离职`, 'info');
+                    } else {
+                        // 立即删除：直接进回收池
+                        recycleMembers.value.push({
+                            ...member,
+                            deleteReason: deleteForm.value.reason,
+                            deleteReasonLabel: deleteReasonLabel,
+                            deleteTime: operationTime,                  // 兼容旧字段
+                            operationTime: operationTime,                // 操作时间戳
+                            effectiveDepartureTime: operationTime,       // 实际生效离职时间
+                            timingType: 'immediate',
+                            status: 'departed',
+                            note: (deleteForm.value.note || '').trim(),
+                            departureDate: deleteForm.value.reason === 'departure' ? (deleteForm.value.departureDate || todayStr) : ''
+                        });
+                        members.value = members.value.filter(m => m.id !== deletingMemberId.value);
+                        showToast(`${member.name} 已转入回收池`, 'success');
+                    }
+
+                    showDeleteReasonModal.value = false;
+                    touchUpdateTime();
+                };
+
+                // ===== 自动检测离职到期，移入回收池 =====
+                const checkAndMoveExpiredMembers = () => {
+                    const now = new Date();
+                    const todayStr = now.toISOString().split('T')[0];
+                    const stampStr = now.getFullYear() + '-' +
+                        String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                        String(now.getDate()).padStart(2, '0') + ' ' +
+                        String(now.getHours()).padStart(2, '0') + ':' +
+                        String(now.getMinutes()).padStart(2, '0') + ':' +
+                        String(now.getSeconds()).padStart(2, '0');
+
+                    const expired = members.value.filter(m => {
+                        if (!m.departureDate) return false;
+                        // 不能自动删掉总负责人和组长
+                        if (rootLeader.value.id === m.id) return false;
+                        if (groups.value.some(g => g.leaderId === m.id)) return false;
+                        return m.departureDate <= todayStr;
+                    });
+                    if (expired.length === 0) return;
+                    expired.forEach(m => {
+                        const reasonValue = m.pendingReason || 'auto-departure';
+                        const reasonLabel = m.pendingReasonLabel || '已离职（自动）';
+                        const userNote = m.pendingNote ? `（预设备注：${m.pendingNote}）` : '';
+                        recycleMembers.value.push({
+                            ...m,
+                            deleteReason: reasonValue,
+                            deleteReasonLabel: reasonLabel,
+                            deleteTime: stampStr,                          // 兼容
+                            operationTime: m.operationTime || stampStr,    // 原始操作时间
+                            effectiveDepartureTime: stampStr,              // 实际生效离职时间 = 自动转移时间
+                            timingType: 'scheduled',
+                            status: 'departed',
+                            note: `系统于 ${stampStr} 检测到预设离职日期（${m.departureDate}）到达，已自动转入回收池${userNote}`,
+                        });
+                    });
+                    const expiredIds = new Set(expired.map(m => m.id));
+                    members.value = members.value.filter(m => !expiredIds.has(m.id));
+                    touchUpdateTime();
+                    console.log(`[自动离职] 已转移 ${expired.length} 位人员到回收池`, expired.map(m => m.name));
+                };
+
+                // 添加成员：实时预览拆分结果
+                const newMemberPreview = computed(() => parseNameInput(newMember.value.rawName));
+                const recycleMembers = ref(SAVED_DATA?.recycleMembers || []);
+
+                // ===== 恢复人员二次确认 =====
+                const showRestoreConfirmModal = ref(false);
+                const restoringMemberId = ref(null);
+                const restoringMemberName = ref('');
+                const restoreLogs = ref(SAVED_DATA?.restoreLogs || []);
+
+                const restoreMember = (id) => {
+                    const member = recycleMembers.value.find(m => m.id === id);
+                    if (!member) return;
+                    restoringMemberId.value = id;
+                    restoringMemberName.value = member.name;
+                    showRestoreConfirmModal.value = true;
+                };
+
+                const confirmRestore = () => {
+                    const id = restoringMemberId.value;
+                    const member = recycleMembers.value.find(m => m.id === id);
+                    if (!member) {
+                        showRestoreConfirmModal.value = false;
+                        return;
+                    }
+
+                    const now = new Date();
+                    const restoreTime = now.getFullYear() + '-' +
+                        String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                        String(now.getDate()).padStart(2, '0') + ' ' +
+                        String(now.getHours()).padStart(2, '0') + ':' +
+                        String(now.getMinutes()).padStart(2, '0') + ':' +
+                        String(now.getSeconds()).padStart(2, '0');
+
+                    // 状态重置：清除所有离职相关字段
+                    const restored = { ...member };
+                    delete restored.deleteReason;
+                    delete restored.deleteReasonLabel;
+                    delete restored.deleteTime;
+                    delete restored.operationTime;
+                    delete restored.effectiveDepartureTime;
+                    delete restored.timingType;
+                    delete restored.note;
+                    delete restored.departureDate;
+                    delete restored.pendingReason;
+                    delete restored.pendingReasonLabel;
+                    delete restored.pendingNote;
+                    restored.status = 'active';
+                    restored.deletedAt = null;
+                    restored.restoredAt = restoreTime;
+
+                    members.value.push(restored);
+                    recycleMembers.value = recycleMembers.value.filter(m => m.id !== id);
+
+                    // 操作日志
+                    restoreLogs.value.push({
+                        memberId: member.id,
+                        memberName: member.name,
+                        restoreTime: restoreTime,
+                        prevDeleteReason: member.deleteReasonLabel || '',
+                        prevDeleteTime: member.operationTime || member.deleteTime || ''
+                    });
+
+                    showRestoreConfirmModal.value = false;
+                    restoringMemberId.value = null;
+                    restoringMemberName.value = '';
+                    showToast(`${member.name} 已恢复为正常在职`, 'success');
+                    touchUpdateTime();
+                };
+                const purgeMember = (id) => {
+                    if (confirm('确定彻底删除该成员？')) {
+                        recycleMembers.value = recycleMembers.value.filter(m => m.id !== id);
+                        touchUpdateTime();
+                    }
+                };
+
+                // ===== 回收池离职原因编辑 =====
+                const editingReasonId = ref(null);
+                const editingReasonForm = ref({ reason: '', departureDate: '' });
+                const startReasonEdit = (m) => {
+                    // 系统自动转入的不允许修改
+                    if (m.deleteReason === 'auto-departure') {
+                        alert('系统自动转入回收池的人员，离职原因不可修改');
+                        return;
+                    }
+                    editingReasonId.value = m.id;
+                    editingReasonForm.value = {
+                        reason: m.deleteReason || 'mistake',
+                        departureDate: m.departureDate || ''
+                    };
+                };
+                const saveReasonEdit = (id) => {
+                    const target = recycleMembers.value.find(m => m.id === id);
+                    if (!target) return;
+                    const newReason = editingReasonForm.value.reason;
+                    if (newReason === 'departure' && !editingReasonForm.value.departureDate) {
+                        alert('请选择离职时间');
+                        return;
+                    }
+                    const reasonLabel = deleteReasonOptions.find(r => r.value === newReason)?.label || newReason;
+                    target.deleteReason = newReason;
+                    target.deleteReasonLabel = reasonLabel;
+                    target.departureDate = newReason === 'departure' ? editingReasonForm.value.departureDate : '';
+                    editingReasonId.value = null;
+                    touchUpdateTime();
+                };
+                const cancelReasonEdit = () => {
+                    editingReasonId.value = null;
+                };
+
+                // ===== 回收池备注内联编辑 =====
+                const editingNoteId = ref(null);
+                const editingNoteText = ref('');
+                const startNoteEdit = (m) => {
+                    editingNoteId.value = m.id;
+                    editingNoteText.value = m.note || '';
+                    nextTick(() => {
+                        const inputs = document.querySelectorAll('.r-note-input');
+                        if (inputs.length) inputs[inputs.length - 1].focus();
+                    });
+                };
+                const saveNoteEdit = (id) => {
+                    const target = recycleMembers.value.find(m => m.id === id);
+                    if (target) {
+                        target.note = editingNoteText.value.trim();
+                        touchUpdateTime();
+                    }
+                    editingNoteId.value = null;
+                    editingNoteText.value = '';
+                };
+                const cancelNoteEdit = () => {
+                    editingNoteId.value = null;
+                    editingNoteText.value = '';
+                };
+
+                onMounted(() => {
+                    touchUpdateTime();
+                    setInterval(touchUpdateTime, 60000);
+                    // 启动时检查一次离职到期
+                    checkAndMoveExpiredMembers();
+                    // 每分钟检查一次（更实时）
+                    setInterval(checkAndMoveExpiredMembers, 60 * 1000);
+                    nextTick(() => {
+                        if (affilChartRef.value) affilChart = echarts.init(affilChartRef.value);
+                        if (groupChartRef.value) groupChart = echarts.init(groupChartRef.value);
+                        renderCharts();
+                        // 初始化组织架构图容器尺寸监听
+                        if (orgWrapRef.value) {
+                            const measure = () => {
+                                const r = orgWrapRef.value.getBoundingClientRect();
+                                wrapSize.value = { w: r.width, h: r.height };
+                            };
+                            measure();
+                            const ro = new ResizeObserver(measure);
+                            ro.observe(orgWrapRef.value);
+                        }
+                    });
+                    window.addEventListener('resize', () => {
+                        affilChart && affilChart.resize();
+                        groupChart && groupChart.resize();
+                    });
+                });
+
+                // 添加/删除组别或成员后，自动重置视图为 80%
+                watch([groups, members], () => {
+                    resetView();
+                }, { deep: false });
+
+                watch([affiliationPieData, groupPieData], () => {
+                    nextTick(renderCharts);
+                }, { deep: true });
+
+                // ===== 监听所有状态变化，自动持久化到 localStorage =====
+                watch([members, groups, rootLeader, uiPM, uiPMTeam, recycleMembers, restoreLogs], () => {
+                    saveToStorage({
+                        members: members.value,
+                        groups: groups.value,
+                        uiPMTeam: uiPMTeam.value,
+                        rootLeader: rootLeader.value,
+                        uiPM: uiPM.value,
+                        recycleMembers: recycleMembers.value,
+                        restoreLogs: restoreLogs.value,
+                        groupColors: { ...GROUP_COLORS },
+                    });
+                }, { deep: true });
+
+                // ===== 恢复默认数据 =====
+                const resetAllData = () => {
+                    if (!confirm('确认清除所有本地数据并恢复到默认状态吗？\n此操作不可撤销。')) return;
+                    try {
+                        localStorage.removeItem(STORAGE_KEY);
+                    } catch (e) {}
+                    location.reload();
+                };
+
+                // ============================================================
+                // ===== 导入向导（单页电子表格 + 折叠辅助入口） ===============
+                // ============================================================
+                const showWizard = ref(false);
+                const wizardCanSkip = ref(true);
+                const wizardSubtitle = computed(() =>
+                    '直接编辑下方表格录入团队成员；如需批量录入，可使用底部「📋 粘贴 / 📂 JSON」工具'
+                );
+                const wizardFooterInfo = computed(() =>
+                    '提示：确认导入后将覆盖当前所有数据（含回收池）。可在主界面顶部「📥 重新导入」再次进入此页。'
+                );
+
+                // 折叠辅助入口面板
+                const advancedOpen = ref(false);
+                const advancedTab = ref('text');     // 'text' | 'json' | 'ocr'
+                const openAdv = (tab) => {
+                    advancedTab.value = tab;
+                    advancedOpen.value = true;
+                };
+
+                // OCR 已下线（如需图片转结构化数据，请使用 CodeBuddy 等多模态助手生成 JSON / 文本后导入）
+
+                // 文本
+                const textInputRaw = ref('');
+                const TEXT_TEMPLATES = {
+                    tree: `林晓（总负责人）\n  林晓（职能A组组长）\n    李泽\n  苏雅琴（职能B组组长）\n    吴佳\n  周明轩（职能C组组长）\n  王诗雨（职能D组组长）`,
+                    line: `总负责人：林晓\nUI PM：陈璐\n职能A组：林晓（组长）、李泽\n职能B组组长是苏雅琴，成员有吴佳\n职能C组：周明轩（组长）\n职能D组：王诗雨（组长）`,
+                    csv: `姓名,角色,组别\n林晓,总负责人,\n林晓,组长,职能A组\n李泽,成员,职能A组\n苏雅琴,组长,职能B组\n吴佳,成员,职能B组\n周明轩,组长,职能C组\n王诗雨,组长,职能D组`
+                };
+                const loadTextTemplate = (t) => { textInputRaw.value = TEXT_TEMPLATES[t] || ''; };
+
+                // 预览数据（统一格式）
+                const previewData = ref({
+                    rootLeader: { name: '', enName: '', affiliation: '' },
+                    uiPM: { name: '', enName: '' },
+                    pmExtras: [], // PM 协助成员 [{ name, enName }]，不计入统计、不进主架构图
+                    groups: []  // [{ key, name, members: [{ name, enName, role: 'leader'|'member' }] }]
+                });
+                const previewTotalMembers = computed(() => {
+                    return previewData.value.groups.reduce((sum, g) => sum + g.members.length, 0);
+                });
+                const previewIsEmpty = computed(() => {
+                    if (previewData.value.rootLeader.name) return false;
+                    if (previewData.value.uiPM.name) return false;
+                    return previewData.value.groups.length === 0
+                        || (previewData.value.groups.length > 0 && previewData.value.groups.every(g => !g.name && g.members.length === 0));
+                });
+
+                // ===== 把当前 app 状态（members/groups/rootLeader/uiPM）灌进 previewData =====
+                const seedPreviewFromCurrent = () => {
+                    const groupMap = new Map();
+                    groups.value.forEach(g => {
+                        groupMap.set(g.key, { key: g.key, name: g.name, leaderId: g.leaderId, members: [] });
+                    });
+                    members.value.forEach(m => {
+                        const g = groupMap.get(m.group);
+                        if (!g) return;
+                        g.members.push({
+                            name: m.name || '',
+                            enName: m.enName || '',
+                            affiliation: m.affiliation || '',
+                            role: (g.leaderId === m.id) ? 'leader' : 'member'
+                        });
+                    });
+                    // 组长排第一
+                    const groupArr = Array.from(groupMap.values()).map(g => {
+                        g.members.sort((a, b) => (a.role === 'leader' ? -1 : 0) - (b.role === 'leader' ? -1 : 0));
+                        return { key: g.key, name: g.name, members: g.members };
+                    });
+                    previewData.value = {
+                        rootLeader: {
+                            name: rootLeader.value.name || '',
+                            enName: rootLeader.value.enName || '',
+                            affiliation: rootLeader.value.affiliation || ''
+                        },
+                        uiPM: {
+                            name: uiPM.value.name || '',
+                            enName: uiPM.value.enName || '',
+                            role: uiPM.value.role || 'UI PM'
+                        },
+                        groups: groupArr
+                    };
+                };
+
+                // ===== 向导：打开/关闭 =====
+                const openWizard = (allowSkip = true) => {
+                    wizardCanSkip.value = !!allowSkip;
+                    showWizard.value = true;
+                    // 重置辅助入口状态
+                    advancedOpen.value = false;
+                    advancedTab.value = 'text';
+                    textInputRaw.value = '';
+                    // 用当前应用数据预填表格，便于直接编辑
+                    seedPreviewFromCurrent();
+                };
+                const closeWizard = () => { showWizard.value = false; };
+                const skipWizard = () => { showWizard.value = false; };
+
+                // ===== JSON 导入 =====
+                const jsonFileInput = ref(null);
+                const onJsonFileChange = (e) => {
+                    const file = e.target.files && e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        try {
+                            const data = JSON.parse(reader.result);
+                            if (!data || typeof data !== 'object') throw new Error('格式不正确');
+
+                            // 把 JSON 还原成 previewData 结构（与 seedPreviewFromCurrent 一致）
+                            const groupMap = new Map();
+                            (data.groups || []).forEach(g => {
+                                groupMap.set(g.key, { key: g.key, name: g.name, leaderId: g.leaderId, members: [] });
+                            });
+                            (data.members || []).forEach(m => {
+                                const g = groupMap.get(m.group);
+                                if (!g) return;
+                                g.members.push({
+                                    name: m.name || '',
+                                    enName: m.enName || '',
+                                    affiliation: m.affiliation || '',
+                                    role: (g.leaderId === m.id) ? 'leader' : 'member'
+                                });
+                            });
+                            const groupArr = Array.from(groupMap.values()).map(g => {
+                                g.members.sort((a, b) => (a.role === 'leader' ? -1 : 0) - (b.role === 'leader' ? -1 : 0));
+                                return { key: g.key, name: g.name, members: g.members };
+                            });
+                            const newPreview = {
+                                rootLeader: {
+                                    name: data.rootLeader?.name || '',
+                                    enName: data.rootLeader?.enName || '',
+                                    affiliation: data.rootLeader?.affiliation || ''
+                                },
+                                uiPM: {
+                                    name: data.uiPM?.name || '',
+                                    enName: data.uiPM?.enName || '',
+                                    role: data.uiPM?.role || 'UI PM'
+                                },
+                                groups: groupArr
+                            };
+                            const peopleCount = newPreview.groups.reduce((s, g) => s + g.members.length, 0);
+
+                            // 二次确认
+                            if (!previewIsEmpty.value) {
+                                const ok = confirm(`将用 JSON 文件内容（${newPreview.groups.length} 组、${peopleCount} 人）覆盖主表格当前内容，是否继续？\n\n（仅替换表格，未点「确认导入」前不会写入应用。）`);
+                                if (!ok) { e.target.value = ''; return; }
+                            }
+                            previewData.value = newPreview;
+                            advancedOpen.value = false;
+                            showToast(`JSON 已载入：${newPreview.groups.length} 组、${peopleCount} 人`, 'success');
+                        } catch (err) {
+                            alert('JSON 文件解析失败：' + err.message);
+                        }
+                    };
+                    reader.readAsText(file, 'utf-8');
+                    e.target.value = '';
+                };
+
+                // ===== OCR 处理（已下线） =====
+
+                // ============================================================
+                // ===== 文本智能解析引擎 =====================================
+                // ============================================================
+                const ROLE_KEYWORDS = {
+                    root: ['\u603b\u8d1f\u8d23\u4eba', '\u8d1f\u8d23\u4eba', 'UI \u804c\u80fd', 'UI\u804c\u80fd'],
+                    pm:   ['UI PM', 'UIPM', 'PM', '\u4ea7\u54c1\u7ecf\u7406'],
+                    leader: ['\u7ec4\u957f', 'Leader', 'leader', 'lead', 'Lead']
+                };
+                // 移除括号注释，返回 { name, enName, role }
+                const extractNameAndRole = (raw) => {
+                    let text = String(raw || '').trim();
+                    if (!text) return null;
+                    // 去除前后干扰字符
+                    text = text.replace(/^[\s\-\*\u2022\u25cf\u25cb\u25aa\u00b7\u2014\u2013]+/, '').replace(/[\s,\uff0c\u3001]+$/, '');
+                    if (!text) return null;
+                    let role = null;
+                    // 提取所有括号内容
+                    const bracketContents = [];
+                    text = text.replace(/[\(\uff08]([^\)\uff09]+)[\)\uff09]/g, (m, inner) => {
+                        bracketContents.push(inner.trim());
+                        return ' ';
+                    }).replace(/\s+/g, ' ').trim();
+                    // 判断角色
+                    const fullText = raw + ' ' + bracketContents.join(' ');
+                    if (ROLE_KEYWORDS.root.some(k => fullText.includes(k))) role = 'root';
+                    else if (ROLE_KEYWORDS.pm.some(k => fullText.includes(k) && !fullText.includes('PM\u52a9\u7406'))) role = 'pm';
+                    else if (ROLE_KEYWORDS.leader.some(k => fullText.includes(k))) role = 'leader';
+                    // 在 text 中也可能有"组长 李四"
+                    const cleaned = text
+                        .replace(/\u603b\u8d1f\u8d23\u4eba|\u8d1f\u8d23\u4eba|UI\s*PM|UIPM|PM|\u4ea7\u54c1\u7ecf\u7406|UI\s*\u804c\u80fd|\u7ec4\u957f|Leader|leader|Lead|lead/g, ' ')
+                        .replace(/[\:\uff1a]/g, ' ')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                    if (!cleaned) return null;
+                    // 拆分中英文
+                    const cnMatch = cleaned.match(/[\u4e00-\u9fa5]{2,4}/g);
+                    const enMatch = cleaned.match(/[A-Za-z][A-Za-z0-9_\.\-]+/g);
+                    const name = cnMatch ? cnMatch[0] : (enMatch ? enMatch[0] : cleaned);
+                    const enName = (enMatch && enMatch.length > 0 && (!cnMatch || enMatch[0] !== name)) ? enMatch[0] : '';
+                    if (!name || /^[\d\s]+$/.test(name)) return null;
+                    return { name, enName, role };
+                };
+                // 检测一行是否是"组别声明"
+                const detectGroupHeader = (line) => {
+                    const trimmed = line.trim();
+                    if (!trimmed) return null;
+                    // 模式1: "A组：xxx" / "A组:xxx" / "A组" / "职能A组" / "职能B组"
+                    const m1 = trimmed.match(/^([\u4e00-\u9fa5A-Za-z0-9]{1,8}\u7ec4)[\:\uff1a]?\s*(.*)$/);
+                    if (m1) return { groupName: m1[1], rest: m1[2] };
+                    // 模式2: "[xxx]" 或 "【xxx】"
+                    const m2 = trimmed.match(/^[\[\u3010]\s*([^\]\u3011]+?)\s*[\]\u3011]\s*[\:\uff1a]?\s*(.*)$/);
+                    if (m2) return { groupName: m2[1], rest: m2[2] };
+                    return null;
+                };
+                // CSV / TSV（Excel 复制粘贴）检测
+                const isLikelyCsv = (text) => {
+                    const lines = text.split(/\r?\n/).filter(l => l.trim());
+                    if (lines.length < 2) return false;
+                    const headLine = lines[0];
+                    // 支持英文逗号 / 中文逗号 / Tab（Excel 复制默认分隔符）
+                    if (!/[,\uff0c\t]/.test(headLine)) return false;
+                    return /\u59d3\u540d|\u540d\u5b57|name|Name|\u89d2\u8272|\u7ec4\u522b|\u90e8\u95e8|role|group/.test(headLine);
+                };
+                // CSV / TSV 解析
+                const parseCsv = (text) => {
+                    const result = { rootLeader: { name: '', enName: '', affiliation: '' }, uiPM: { name: '', enName: '' }, groups: [] };
+                    const lines = text.split(/\r?\n/).filter(l => l.trim());
+                    if (lines.length < 2) return result;
+                    // 自动嗅探分隔符：Tab 优先（Excel 复制粘贴）
+                    const sniff = lines[0];
+                    const delimiter = sniff.includes('\t') ? /\t/
+                                    : (sniff.includes('\uff0c') ? /\uff0c/ : /,/);
+                    const splitLine = (s) => s.split(delimiter).map(x => x.trim());
+                    const headers = splitLine(lines[0]);
+                    const idxName    = headers.findIndex(h => /\u59d3\u540d|\u540d\u5b57|name/i.test(h));
+                    const idxEn      = headers.findIndex(h => /\u82f1\u6587|english|enname|en\s*name/i.test(h));
+                    const idxRole    = headers.findIndex(h => /\u89d2\u8272|\u804c\u4f4d|role/i.test(h));
+                    const idxGroup   = headers.findIndex(h => /\u7ec4\u522b|\u90e8\u95e8|\u5206\u7ec4|group/i.test(h));
+                    const idxAffil   = headers.findIndex(h => /\u7f16\u5236|\u5f52\u5c5e|affiliation/i.test(h));
+                    const affilNorm = (raw) => {
+                        const s = (raw || '').trim();
+                        if (!s) return '';
+                        if (/\u96c6\u56e2.*\u5b9e\u4e60|\u603b\u90e8.*\u5b9e\u4e60/.test(s)) return 'group-intern';
+                        if (/\u96c6\u56e2|\u603b\u90e8|\u672c\u90e8/.test(s)) return 'group-formal';
+                        if (/\u5b50\u516c\u53f8.*\u5b9e\u4e60/.test(s)) return 'sub-intern';
+                        if (/\u5b50\u516c\u53f8/.test(s)) return 'sub-formal';
+                        if (/\u5b9e\u4e60/.test(s)) return 'group-intern';
+                        return '';
+                    };
+                    const groupMap = new Map();
+                    for (let i = 1; i < lines.length; i++) {
+                        const cells = splitLine(lines[i]);
+                        const nameRaw  = idxName >= 0 ? cells[idxName] : cells[0];
+                        const enRaw    = idxEn   >= 0 ? cells[idxEn]   : '';
+                        const roleRaw  = idxRole >= 0 ? cells[idxRole] : '';
+                        const groupRaw = idxGroup>= 0 ? cells[idxGroup]: '';
+                        const affilRaw = idxAffil>= 0 ? cells[idxAffil]: '';
+                        if (!nameRaw && !enRaw) continue;
+                        const parsed = extractNameAndRole((nameRaw || '') + ' ' + (enRaw || '') + ' ' + roleRaw);
+                        if (!parsed) continue;
+                        // 角色优先取列里的关键字
+                        let role = parsed.role;
+                        if (!role) {
+                            if (/\u603b\u8d1f\u8d23\u4eba|\u8d1f\u8d23\u4eba/.test(roleRaw)) role = 'root';
+                            else if (/PM/i.test(roleRaw)) role = 'pm';
+                            else if (/\u7ec4\u957f|leader/i.test(roleRaw)) role = 'leader';
+                        }
+                        const aff = affilNorm(affilRaw);
+                        if (role === 'root') { result.rootLeader.name = parsed.name; result.rootLeader.enName = parsed.enName; if (aff) result.rootLeader.affiliation = aff; continue; }
+                        if (role === 'pm')   { result.uiPM.name = parsed.name; result.uiPM.enName = parsed.enName; continue; }
+                        const gName = groupRaw || '\u672a\u5206\u7ec4';
+                        if (!groupMap.has(gName)) groupMap.set(gName, { key: 'g_' + Date.now().toString(36) + '_' + groupMap.size, name: gName, members: [] });
+                        groupMap.get(gName).members.push({
+                            name: parsed.name,
+                            enName: parsed.enName,
+                            affiliation: aff,
+                            role: role === 'leader' ? 'leader' : 'member'
+                        });
+                    }
+                    result.groups = Array.from(groupMap.values());
+                    return result;
+                };
+                // 主解析入口（缩进树 / 一行一组 / 自然语言混合）
+                const parseFreeText = (text) => {
+                    if (isLikelyCsv(text)) return parseCsv(text);
+                    const result = { rootLeader: { name: '', enName: '', affiliation: '' }, uiPM: { name: '', enName: '' }, groups: [] };
+                    const lines = text.split(/\r?\n/);
+                    const groupMap = new Map();
+                    let currentGroup = null;
+                    let currentIndent = -1;
+                    const ensureGroup = (name) => {
+                        if (!groupMap.has(name)) {
+                            groupMap.set(name, { key: 'g_' + Date.now().toString(36) + '_' + groupMap.size, name, members: [] });
+                        }
+                        return groupMap.get(name);
+                    };
+                    for (const rawLine of lines) {
+                        const line = rawLine.replace(/\r/g, '');
+                        if (!line.trim()) continue;
+                        const indent = line.match(/^[\s\t]*/)[0].length;
+                        const content = line.trim();
+                        // 1) 是否是组别声明
+                        const gh = detectGroupHeader(content);
+                        if (gh) {
+                            currentGroup = ensureGroup(gh.groupName);
+                            currentIndent = indent;
+                            // 处理同一行后面跟着的成员（A组：李四（组长）、王五）
+                            if (gh.rest) {
+                                const parts = gh.rest.split(/[\u3001,\uff0c]/);
+                                for (const p of parts) {
+                                    const parsed = extractNameAndRole(p);
+                                    if (!parsed) continue;
+                                    if (parsed.role === 'root') { result.rootLeader.name = parsed.name; result.rootLeader.enName = parsed.enName; continue; }
+                                    if (parsed.role === 'pm')   { result.uiPM.name = parsed.name; result.uiPM.enName = parsed.enName; continue; }
+                                    currentGroup.members.push({ name: parsed.name, enName: parsed.enName, role: parsed.role === 'leader' ? 'leader' : 'member' });
+                                }
+                            }
+                            continue;
+                        }
+                        // 2) "B组组长是孙七，成员有周八、钱九"
+                        const m = content.match(/^([\u4e00-\u9fa5A-Za-z0-9]{1,8}\u7ec4)\s*\u7ec4\u957f\s*[\u662f\:\uff1a]?\s*(.+)$/);
+                        if (m) {
+                            currentGroup = ensureGroup(m[1]);
+                            currentIndent = indent;
+                            const tail = m[2];
+                            const segs = tail.split(/[\u3001,\uff0c]|\uff0c|\u6210\u5458\u6709|\u3001\u6210\u5458/);
+                            let isFirst = true;
+                            for (const seg of segs) {
+                                const s = seg.replace(/\u6210\u5458\u6709|\u6210\u5458/, '').trim();
+                                if (!s) continue;
+                                const parsed = extractNameAndRole(s);
+                                if (!parsed) continue;
+                                currentGroup.members.push({
+                                    name: parsed.name,
+                                    enName: parsed.enName,
+                                    role: isFirst ? 'leader' : 'member'
+                                });
+                                isFirst = false;
+                            }
+                            continue;
+                        }
+                        // 3) "总负责人：xxx" / "UI PM：xxx"
+                        const parsed = extractNameAndRole(content);
+                        if (!parsed) continue;
+                        if (parsed.role === 'root') {
+                            result.rootLeader.name = parsed.name;
+                            result.rootLeader.enName = parsed.enName;
+                            continue;
+                        }
+                        if (parsed.role === 'pm') {
+                            result.uiPM.name = parsed.name;
+                            result.uiPM.enName = parsed.enName;
+                            continue;
+                        }
+                        // 4) 缩进树：根据缩进判断从属
+                        if (parsed.role === 'leader') {
+                            // 该名字作为新组组长，组名待补
+                            const gName = `\u7ec4-${parsed.name}`;
+                            currentGroup = ensureGroup(gName);
+                            currentGroup.members.push({ name: parsed.name, enName: parsed.enName, role: 'leader' });
+                            currentIndent = indent;
+                        } else {
+                            // 普通成员：归到当前组
+                            if (!currentGroup) {
+                                currentGroup = ensureGroup('\u672a\u5206\u7ec4');
+                                currentIndent = indent;
+                            }
+                            // 如缩进比 currentIndent 浅且不等，可能是新一组的组长（无 (组长) 标记的情况）
+                            currentGroup.members.push({ name: parsed.name, enName: parsed.enName, role: 'member' });
+                        }
+                    }
+                    result.groups = Array.from(groupMap.values()).filter(g => g.members.length > 0 || g.name);
+                    return result;
+                };
+
+                // ===== 辅助入口：解析文本/OCR → 二次确认 → 覆盖主表格 =====
+                const applyAdvText = (overrideText) => {
+                    const text = ((overrideText !== undefined ? overrideText : textInputRaw.value) || '').trim();
+                    if (!text) { showToast('请先输入或粘贴文本', 'warn'); return; }
+                    const parsed = parseFreeText(text);
+                    const peopleCount = parsed.groups.reduce((s, g) => s + g.members.length, 0);
+                    if (parsed.groups.length === 0 && !parsed.rootLeader.name) {
+                        showToast('未识别出有效数据，请调整文本格式后重试', 'warn', 3500);
+                        return;
+                    }
+                    // 当前主表格非空 → 二次确认
+                    if (!previewIsEmpty.value) {
+                        const ok = confirm(`将用解析结果（${parsed.groups.length} 组、${peopleCount} 人）覆盖主表格当前内容，是否继续？\n\n（仅替换表格，未点「确认导入」前不会写入应用。）`);
+                        if (!ok) return;
+                    }
+                    previewData.value = parsed;
+                    advancedOpen.value = false;     // 自动收起辅助面板，回到主表格
+                    showToast(`已替换主表格：${parsed.groups.length} 组、${peopleCount} 人`, 'success');
+                };
+
+                // 兼容旧入口名（OCR 流程曾调用）— 已统一到 applyAdvText
+            
+
+                // ===== 预览页操作 =====
+                const addPreviewGroup = () => {
+                    previewData.value.groups.push({
+                        key: 'g_' + Date.now().toString(36) + '_' + previewData.value.groups.length,
+                        name: `\u65b0\u7ec4${previewData.value.groups.length + 1}`,
+                        members: []
+                    });
+                };
+                const removePreviewGroup = (idx) => {
+                    if (!confirm('\u786e\u5b9a\u5220\u9664\u8be5\u7ec4\u53ca\u5176\u4e0b\u6240\u6709\u6210\u5458\u5417\uff1f')) return;
+                    previewData.value.groups.splice(idx, 1);
+                };
+                // 添加成员（role: 'leader' | 'member'）
+                const addPreviewMember = (groupIdx, role = 'member') => {
+                    const g = previewData.value.groups[groupIdx];
+                    if (!g) return;
+                    if (role === 'leader') {
+                        // 取消其他人的组长身份，把新成员置顶并标记
+                        g.members.forEach(m => { if (m.role === 'leader') m.role = 'member'; });
+                        g.members.unshift({ name: '', enName: '', affiliation: '', role: 'leader' });
+                    } else {
+                        g.members.push({ name: '', enName: '', affiliation: '', role: 'member' });
+                    }
+                };
+                // 取组长姓名（无显式组长时返回首位）
+                const getLeaderName = (g) => {
+                    const leader = g.members.find(m => m.role === 'leader');
+                    if (leader && leader.name) return leader.name;
+                    if (g.members[0] && g.members[0].name) return g.members[0].name;
+                    return '';
+                };
+                // 取当前组的组长在 members 数组中的下标（无组长则用第 0 位）
+                const getLeaderIdx = (g) => {
+                    if (!g || !Array.isArray(g.members)) return 0;
+                    const idx = g.members.findIndex(m => m.role === 'leader');
+                    return idx >= 0 ? idx : 0;
+                };
+                // 把指定下标的成员设为组长（其他人改回 member）
+                const setLeader = (groupIdx, memberIdx) => {
+                    const g = previewData.value.groups[groupIdx];
+                    if (!g || !Array.isArray(g.members)) return;
+                    if (memberIdx < 0 || memberIdx >= g.members.length) return;
+                    g.members.forEach((m, i) => { m.role = (i === memberIdx) ? 'leader' : 'member'; });
+                };
+                // 循环切换组长（保留旧逻辑兼容）
+                const cycleLeader = (groupIdx) => {
+                    const g = previewData.value.groups[groupIdx];
+                    if (!g || g.members.length < 2) return;
+                    const curIdx = g.members.findIndex(m => m.role === 'leader');
+                    const nextIdx = (curIdx + 1) % g.members.length;
+                    g.members.forEach((m, i) => { m.role = (i === nextIdx) ? 'leader' : 'member'; });
+                };
+
+                // ===== AI 对话相关（已移除） =====
+
+                // ============================================================
+                // ===== 确认导入：写入应用状态 ===============================
+                // ============================================================
+                const addPmExtra = () => {
+                    if (!previewData.value.pmExtras) previewData.value.pmExtras = [];
+                    previewData.value.pmExtras.push({ name: '', enName: '' });
+                };
+                const removePmExtra = (i) => {
+                    if (previewData.value.pmExtras) previewData.value.pmExtras.splice(i, 1);
+                };
+                const confirmImport = () => {
+                    if (previewIsEmpty.value) { alert('\u6ca1\u6709\u53ef\u5bfc\u5165\u7684\u6570\u636e'); return; }
+                    if (!confirm('\u786e\u8ba4\u5bfc\u5165\u540e\u5c06\u8986\u76d6\u5f53\u524d\u6240\u6709\u6570\u636e\uff08\u5305\u62ec\u56de\u6536\u6c60\uff09\uff0c\u662f\u5426\u7ee7\u7eed\uff1f')) return;
+                    const palette = ['#4F7CD9', '#7CC576', '#F4B942', '#E15B5B', '#8b5cf6', '#06b6d4', '#ec4899', '#10b981', '#f97316', '#6366f1'];
+                    const newGroups = [];
+                    const newMembers = [];
+                    let nextId = 1;
+                    let rootId = null;
+                    // 处理总负责人
+                    if (previewData.value.rootLeader.name) {
+                        rootId = nextId++;
+                    }
+                    // 处理每个组
+                    previewData.value.groups.forEach((g, gi) => {
+                        const groupKey = g.key || ('g_imp_' + Date.now().toString(36) + '_' + gi);
+                        GROUP_COLORS[groupKey] = palette[gi % palette.length];
+                        let leaderId = null;
+                        const validMembers = g.members.filter(m => (m.name || '').trim());
+                        validMembers.forEach(m => {
+                            const id = nextId++;
+                            newMembers.push({
+                                id,
+                                name: m.name.trim(),
+                                enName: (m.enName || '').trim(),
+                                group: groupKey,
+                                affiliation: m.affiliation || 'group-formal',
+                                departureDate: ''
+                            });
+                            if (m.role === 'leader' && leaderId === null) leaderId = id;
+                        });
+                        // 如果没有显式 leader，用第一个成员
+                        if (leaderId === null && validMembers.length > 0) {
+                            leaderId = newMembers[newMembers.length - validMembers.length].id;
+                        }
+                        newGroups.push({
+                            key: groupKey,
+                            name: g.name || `\u7ec4${gi + 1}`,
+                            leaderId
+                        });
+                    });
+                    // 写入总负责人
+                    let newRoot = { id: 0, name: '', enName: '', affiliation: 'group-formal', departureDate: '' };
+                    if (rootId !== null) {
+                        const r = previewData.value.rootLeader;
+                        newRoot = {
+                            id: rootId,
+                            name: r.name.trim(),
+                            enName: (r.enName || '').trim(),
+                            affiliation: r.affiliation || 'group-formal',
+                            departureDate: ''
+                        };
+                        // 同步加入 members（若总负责人姓名已存在于 members 中则不重复添加）
+                        const rootName = (newRoot.name || '').trim();
+                        const dupMember = rootName ? newMembers.find(m => (m.name || '').trim() === rootName) : null;
+                        if (dupMember) {
+                            // 复用已有的 member（包括其组别），把 rootLeader.id 同步成它的 id，避免冗余
+                            newRoot.id = dupMember.id;
+                        } else if (!newMembers.some(m => m.id === rootId)) {
+                            // 总负责人挂到第一个组（若有）
+                            const firstGroupKey = newGroups[0]?.key || null;
+                            if (firstGroupKey) {
+                                newMembers.unshift({
+                                    id: rootId,
+                                    name: newRoot.name,
+                                    enName: newRoot.enName,
+                                    group: firstGroupKey,
+                                    affiliation: newRoot.affiliation,
+                                    departureDate: ''
+                                });
+                            }
+                        }
+                    } else if (newGroups.length > 0) {
+                        // 没有显式总负责人，用第一组组长
+                        const firstLeaderId = newGroups[0].leaderId;
+                        const firstLeader = newMembers.find(m => m.id === firstLeaderId);
+                        if (firstLeader) {
+                            newRoot = {
+                                id: firstLeader.id,
+                                name: firstLeader.name,
+                                enName: firstLeader.enName,
+                                affiliation: firstLeader.affiliation,
+                                departureDate: ''
+                            };
+                        }
+                    }
+                    // 提交到 ref
+                    members.value = newMembers;
+                    groups.value = newGroups;
+                    rootLeader.value = newRoot;
+                    uiPM.value = {
+                        name: (previewData.value.uiPM.name || '').trim(),
+                        enName: (previewData.value.uiPM.enName || '').trim(),
+                        role: (previewData.value.uiPM.role || '').trim() || 'UI PM',
+                        departureDate: ''
+                    };
+                    // 写入 PM 协助成员（不计入统计 / 不渲染主架构图）
+                    uiPMTeam.value = (previewData.value.pmExtras || [])
+                        .map(p => ({ name: (p.name || '').trim(), enName: (p.enName || '').trim() }))
+                        .filter(p => p.name);
+                    recycleMembers.value = [];
+                    showWizard.value = false;
+                    showToast(`\u5bfc\u5165\u6210\u529f\uff1a${newGroups.length} \u7ec4\u3001${newMembers.length} \u4eba`, 'success', 3000);
+                    touchUpdateTime();
+                    nextTick(() => {
+                        renderCharts();
+                        resetView();
+                    });
+                };
+
+                // ===== 首次启动检测：本地无数据则弹出向导 =====
+                const isFirstLaunch = !SAVED_DATA;
+                if (isFirstLaunch) {
+                    nextTick(() => openWizard(true));
+                }
+
+                return {
+                    currentTime, deadlineDate,
+                    groups, members, rootLeader, uiPM,
+                    showAddModal, newMember,
+                    showEditModal, editingType, editingId, editingForm, editingTitle,
+                    openEdit, saveEdit,
+                    groupColor, getAffiliationLabel,
+                    affilBgColor, affilTextColor,
+                    countByAffiliation, getGroupMemberCount,
+                    getGroupLeader, getGroupNonLeaderMembers,
+                    affiliationPieData, groupPieData,
+                    addMember, removeMember,
+                    newMemberPreview,
+                    recycleMembers, restoreMember, purgeMember,
+                    showRestoreConfirmModal, restoringMemberName, confirmRestore,
+                    toasts,
+                    editingNoteId, editingNoteText, startNoteEdit, saveNoteEdit, cancelNoteEdit,
+                    editingReasonId, editingReasonForm, startReasonEdit, saveReasonEdit, cancelReasonEdit,
+                    colorPalette,
+                    showAddGroupModal, newGroup, openAddGroup, confirmAddGroup,
+                    showRenameGroupModal, renamingGroup, openRenameGroup, confirmRenameGroup,
+                    deleteGroup,
+                    orgLayout,
+                    orgWrapRef, wrapSize, userScale, pan, isDragging,
+                    canvasTransform, displayScale,
+                    onWheelZoom, onPanStart, zoomIn, zoomOut, resetView,
+                    affilChartRef, groupChartRef,
+                    showDeleteReasonModal, deletingMemberName, deleteForm, deleteReasonOptions, confirmDeleteWithReason,
+                    getPercentage,
+                    resetAllData,
+                    // ===== 导入向导（单页电子表格 + 折叠辅助入口） =====
+                    showWizard, wizardCanSkip, wizardSubtitle, wizardFooterInfo,
+                    openWizard, closeWizard, skipWizard,
+                    advancedOpen, advancedTab, openAdv,
+                    // 文本
+                    textInputRaw, loadTextTemplate, applyAdvText,
+                    // 主表格（previewData 即为电子表格）
+                    previewData, previewTotalMembers, previewIsEmpty,
+                    addPreviewGroup, removePreviewGroup, addPreviewMember,
+                    getLeaderName, cycleLeader, getLeaderIdx, setLeader,
+                    addPmExtra, removePmExtra, uiPMTeam,
+                    confirmImport,
+                    // JSON
+                    jsonFileInput, onJsonFileChange,
+                };
+            }
+        });
+
+        app.mount('#app');
+        console.log('HIGAME UI 人力架构系统 v4 已启动 (全 SVG + ECharts)');
+    </script>
+</body>
+</html>
